@@ -1,48 +1,37 @@
-# 腾讯云开发者平台 drawWordCloud
+# 使用Python绘制词云
 
-> 技术赋能，助力开发
+## 可读取的文档类型
 
-腾讯云开发者平台免费为开发者提供高效便捷的开发工具与优质的开发管理服务。
+- docx
+- pdf
+- txt
 
-包括项目协作、Git/SVN 代码托管、在线编辑器、持续集成等工具。
+## 蒙版图片，可自定义
 
-![平台截图](https://dn-coding-net-production-pp.codehub.cn/4ba18ace-ccc9-45a7-a802-655283eb648a.png)
+- 心形
+- 中国地图
+- 锁形
+- ...
 
-## 安装
+## 多字体选择，可自定义
 
-1. 准备一个微信
-2. 准备一台电脑
-3. 访问 https://dev.tencent.com
+- 微软雅黑
+- 微软正黑
+- 华文行楷
+- 黑体
+- 楷体
+- 仿宋 
+- ...
 
+## 示例
 
+![词云示例1](outputImages\wordCloud-1.png)
+![词云示例5](outputImages\wordCloud-5.png)
+![词云示例6](outputImages\wordCloud-6.png)
+![词云示例7](outputImages\wordCloud-7.png)
 
-## 使用
+## 使用的库
 
-[帮助文档](https://dev.tencent.com/help/)
-
-[开发者社区](https://feedback.coding.net/)
-
-[官方博客](https://blog.coding.net/)
-
-
-
-## 开发
-
-打开 [Cloud Studio](https://studio.dev.tencent.com/)。
-
-
-
-## 发布历史
-
-
-
-### v4.0710.1
-
-- 新增持续集成 beta 版
-- 优化官网首页及调整导航结构
-- 优化 UI 细节
-
-### v4.0529.1
-- 上线 Pages 验证域名所有权的功能
-- 优化登录注册流程
-- 修复若干已知 bug
+- wordcloud
+- docx
+- pdfminer3k
