@@ -1,0 +1,3139 @@
+Deep Residual Learning for Image Recognition
+
+Kaiming He
+
+Xiangyu Zhang
+
+Shaoqing Ren
+
+Jian Sun
+
+Microsoft Research
+
+{kahe, v-xiangz, v-shren, jiansun}@microsoft.com
+
+Abstract
+
+Deeper neural networks are more difﬁcult to train. We
+present a residual learning framework to ease the training
+of networks that are substantially deeper than those used
+previously. We explicitly reformulate the layers as learn-
+ing residual functions with reference to the layer inputs, in-
+stead of learning unreferenced functions. We provide com-
+prehensive empirical evidence showing that these residual
+networks are easier to optimize, and can gain accuracy from
+considerably increased depth. On the ImageNet dataset we
+evaluate residual nets with a depth of up to 152 layers—8×
+deeper than VGG nets [40] but still having lower complex-
+ity. An ensemble of these residual nets achieves 3.57% error
+on the ImageNet test set. This result won the 1st place on the
+ILSVRC 2015 classiﬁcation task. We also present analysis
+on CIFAR-10 with 100 and 1000 layers.
+The depth of representations is of central importance
+for many visual recognition tasks. Solely due to our ex-
+tremely deep representations, we obtain a 28% relative im-
+provement on the COCO object detection dataset. Deep
+residual nets are foundations of our submissions to ILSVRC
+& COCO 2015 competitions1 , where we also won the 1st
+places on the tasks of ImageNet detection, ImageNet local-
+ization, COCO detection, and COCO segmentation.
+
+1. Introduction
+
+Deep convolutional neural networks [22, 21] have led
+to a series of breakthroughs for image classiﬁcation [21,
+49, 39]. Deep networks naturally integrate low/mid/high-
+level features [49] and classiﬁers in an end-to-end multi-
+layer fashion, and the “levels” of features can be enriched
+by the number of stacked layers (depth). Recent evidence
+[40, 43] reveals that network depth is of crucial importance,
+and the leading results [40, 43, 12, 16] on the challenging
+ImageNet dataset [35] all exploit “very deep” [40] models,
+with a depth of sixteen [40] to thirty [16]. Many other non-
+trivial visual recognition tasks [7, 11, 6, 32, 27] have also
+
+1 http://image- net.org/challenges/LSVRC/2015/
+and
+http://mscoco.org/dataset/#detections- challenge2015.
+
+20
+
+10
+
+)
+
+%
+
+(
+
+r
+
+o
+
+r
+r
+
+e
+
+g
+n
+
+i
+
+n
+
+i
+
+a
+
+r
+t
+
+0
+
+0
+
+20
+
+10
+
+)
+
+%
+
+(
+
+r
+
+o
+
+r
+r
+
+e
+
+t
+
+s
+e
+
+t
+
+56-layer
+
+20-layer
+
+56-layer
+
+20-layer
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+iter. (1e4)
+
+iter. (1e4)
+
+Figure 1. Training error (left) and test error (right) on CIFAR-10
+with 20-layer and 56-layer “plain” networks. The deeper network
+has higher training error, and thus test error. Similar phenomena
+on ImageNet is presented in Fig. 4.
+
+greatly beneﬁted from very deep models.
+
+Driven by the signiﬁcance of depth, a question arises: Is
+learning better networks as easy as stacking more layers?
+An obstacle to answering this question was the notorious
+problem of vanishing/exploding gradients [14, 1, 8], which
+hamper convergence from the beginning. This problem,
+however, has been largely addressed by normalized initial-
+ization [23, 8, 36, 12] and intermediate normalization layers
+[16], which enable networks with tens of layers to start con-
+verging for stochastic gradient descent (SGD) with back-
+propagation [22].
+
+When deeper networks are able to start converging, a
+degradation problem has been exposed: with the network
+depth increasing, accuracy gets saturated (which might be
+unsurprising) and then degrades rapidly. Unexpectedly,
+such degradation is not caused by overﬁtting, and adding
+more layers to a suitably deep model leads to higher train-
+ing error, as reported in [10, 41] and thoroughly veriﬁed by
+our experiments. Fig. 1 shows a typical example.
+
+The degradation (of training accuracy) indicates that not
+all systems are similarly easy to optimize. Let us consider a
+shallower architecture and its deeper counterpart that adds
+more layers onto it. There exists a solution by construction
+to the deeper model: the added layers are identity mapping,
+and the other layers are copied from the learned shallower
+model. The existence of this constructed solution indicates
+that a deeper model should produce no higher training error
+than its shallower counterpart. But experiments show that
+our current solvers on hand are unable to ﬁnd solutions that
+
+1770
+
+x
+
+weight layer
+
+relK
+
+weight layer
+
+F(x)
+
+F(x)(cid:1)+(cid:1)x
+
+relK
+
+x
+
+identity
+
+Figure 2. Residual learning: a building block.
+
+are comparably good or better than the constructed solution
+(or unable to do so in feasible time).
+In this paper, we address the degradation problem by
+introducing a deep residual
+learning framework.
+In-
+stead of hoping each few stacked layers directly ﬁt a
+desired underlying mapping, we explicitly let these lay-
+ers ﬁt a residual mapping. Formally, denoting the desired
+underlying mapping as H(x), we let the stacked nonlinear
+layers ﬁt another mapping of F (x) := H(x) − x. The orig-
+inal mapping is recast into F (x) + x. We hypothesize that it
+is easier to optimize the residual mapping than to optimize
+the original, unreferenced mapping. To the extreme, if an
+identity mapping were optimal, it would be easier to push
+the residual to zero than to ﬁt an identity mapping by a stack
+of nonlinear layers.
+The formulation of F (x) + x can be realized by feedfor-
+ward neural networks with “shortcut connections” (Fig. 2).
+Shortcut connections [2, 33, 48] are those skipping one or
+more layers. In our case, the shortcut connections simply
+perform identity mapping, and their outputs are added to
+the outputs of the stacked layers (Fig. 2).
+Identity short-
+cut connections add neither extra parameter nor computa-
+tional complexity. The entire network can still be trained
+end-to-end by SGD with backpropagation, and can be eas-
+ily implemented using common libraries (e.g., Caffe [19])
+without modifying the solvers.
+We present comprehensive experiments on ImageNet
+[35] to show the degradation problem and evaluate our
+method. We show that: 1) Our extremely deep residual nets
+are easy to optimize, but the counterpart “plain” nets (that
+simply stack layers) exhibit higher training error when the
+depth increases; 2) Our deep residual nets can easily enjoy
+accuracy gains from greatly increased depth, producing re-
+sults substantially better than previous networks.
+Similar phenomena are also shown on the CIFAR-10 set
+[20], suggesting that the optimization difﬁculties and the
+effects of our method are not just akin to a particular dataset.
+We present successfully trained models on this dataset with
+over 100 layers, and explore models with over 1000 layers.
+On the ImageNet classiﬁcation dataset [35], we obtain
+excellent results by extremely deep residual nets. Our 152-
+layer residual net is the deepest network ever presented on
+ImageNet, while still having lower complexity than VGG
+nets [40]. Our ensemble has 3.57% top-5 error on the
+
+ImageNet test set, and won the 1st place in the ILSVRC
+2015 classiﬁcation competition. The extremely deep rep-
+resentations also have excellent generalization performance
+on other recognition tasks, and lead us to further win the
+1st places on: ImageNet detection, ImageNet localization,
+COCO detection, and COCO segmentation in ILSVRC &
+COCO 2015 competitions. This strong evidence shows that
+the residual learning principle is generic, and we expect that
+it is applicable in other vision and non-vision problems.
+
+2. Related Work
+
+Residual Representations. In image recognition, VLAD
+[18] is a representation that encodes by the residual vectors
+with respect to a dictionary, and Fisher Vector [30] can be
+formulated as a probabilistic version [18] of VLAD. Both
+of them are powerful shallow representations for image re-
+trieval and classiﬁcation [4, 47]. For vector quantization,
+encoding residual vectors [17] is shown to be more effec-
+tive than encoding original vectors.
+In low-level vision and computer graphics, for solv-
+ing Partial Differential Equations (PDEs), the widely used
+Multigrid method [3] reformulates the system as subprob-
+lems at multiple scales, where each subproblem is respon-
+sible for the residual solution between a coarser and a ﬁner
+scale. An alternative to Multigrid is hierarchical basis pre-
+conditioning [44, 45], which relies on variables that repre-
+sent residual vectors between two scales. It has been shown
+[3, 44, 45] that these solvers converge much faster than stan-
+dard solvers that are unaware of the residual nature of the
+solutions. These methods suggest that a good reformulation
+or preconditioning can simplify the optimization.
+
+Shortcut Connections. Practices and theories that lead to
+shortcut connections [2, 33, 48] have been studied for a long
+time. An early practice of training multi-layer perceptrons
+(MLPs) is to add a linear layer connected from the network
+input to the output [33, 48].
+In [43, 24], a few interme-
+diate layers are directly connected to auxiliary classiﬁers
+for addressing vanishing/exploding gradients. The papers
+of [38, 37, 31, 46] propose methods for centering layer re-
+sponses, gradients, and propagated errors, implemented by
+shortcut connections. In [43], an “inception” layer is com-
+posed of a shortcut branch and a few deeper branches.
+Concurrent with our work, “highway networks” [41, 42]
+present shortcut connections with gating functions [15].
+These gates are data-dependent and have parameters, in
+contrast to our identity shortcuts that are parameter-free.
+When a gated shortcut is “closed” (approaching zero), the
+layers in highway networks represent non-residual func-
+tions. On the contrary, our formulation always learns
+residual functions; our identity shortcuts are never closed,
+and all information is always passed through, with addi-
+tional residual functions to be learned. In addition, high-
+
+2771
+
+way networks have not demonstrated accuracy gains with
+extremely increased depth (e.g., over 100 layers).
+
+3. Deep Residual Learning
+
+3.1. Residual Learning
+
+Let us consider H(x) as an underlying mapping to be
+ﬁt by a few stacked layers (not necessarily the entire net),
+with x denoting the inputs to the ﬁrst of these layers. If one
+hypothesizes that multiple nonlinear layers can asymptoti-
+cally approximate complicated functions2 , then it is equiv-
+alent to hypothesize that they can asymptotically approxi-
+mate the residual functions, i.e., H(x) − x (assuming that
+the input and output are of the same dimensions). So
+rather than expect stacked layers to approximate H(x), we
+explicitly let these layers approximate a residual function
+F (x) := H(x) − x. The original function thus becomes
+F (x) + x. Although both forms should be able to asymptot-
+ically approximate the desired functions (as hypothesized),
+the ease of learning might be different.
+This reformulation is motivated by the counterintuitive
+phenomena about the degradation problem (Fig. 1, left). As
+we discussed in the introduction, if the added layers can
+be constructed as identity mappings, a deeper model should
+have training error no greater than its shallower counter-
+part. The degradation problem suggests that the solvers
+might have difﬁculties in approximating identity mappings
+by multiple nonlinear layers. With the residual learning re-
+formulation, if identity mappings are optimal, the solvers
+may simply drive the weights of the multiple nonlinear lay-
+ers toward zero to approach identity mappings.
+In real cases, it is unlikely that identity mappings are op-
+timal, but our reformulation may help to precondition the
+problem.
+If the optimal function is closer to an identity
+mapping than to a zero mapping, it should be easier for the
+solver to ﬁnd the perturbations with reference to an identity
+mapping, than to learn the function as a new one. We show
+by experiments (Fig. 7) that the learned residual functions in
+general have small responses, suggesting that identity map-
+pings provide reasonable preconditioning.
+
+3.2. Identity Mapping by Shortcuts
+
+We adopt residual learning to every few stacked layers.
+A building block is shown in Fig. 2. Formally, in this paper
+we consider a building block deﬁned as:
+
+y = F (x, {Wi }) + x.
+
+(1)
+
+Here x and y are the input and output vectors of the lay-
+ers considered. The function F (x, {Wi }) represents the
+residual mapping to be learned. For the example in Fig. 2
+that has two layers, F = W2σ(W1x) in which σ denotes
+
+2 This hypothesis, however, is still an open question. See [28].
+
+ReLU [29] and the biases are omitted for simplifying no-
+tations. The operation F + x is performed by a shortcut
+connection and element-wise addition. We adopt the sec-
+ond nonlinearity after the addition (i.e., σ(y), see Fig. 2).
+The shortcut connections in Eqn.(1) introduce neither ex-
+tra parameter nor computation complexity. This is not only
+attractive in practice but also important in our comparisons
+between plain and residual networks. We can fairly com-
+pare plain/residual networks that simultaneously have the
+same number of parameters, depth, width, and computa-
+tional cost (except for the negligible element-wise addition).
+The dimensions of x and F must be equal in Eqn.(1).
+If this is not the case (e.g., when changing the input/output
+channels), we can perform a linear projection Ws by the
+shortcut connections to match the dimensions:
+
+y = F (x, {Wi }) + Wsx.
+
+(2)
+
+We can also use a square matrix Ws in Eqn.(1). But we will
+show by experiments that the identity mapping is sufﬁcient
+for addressing the degradation problem and is economical,
+and thus Ws is only used when matching dimensions.
+The form of the residual function F is ﬂexible. Exper-
+iments in this paper involve a function F that has two or
+three layers (Fig. 5), while more layers are possible. But if
+F has only a single layer, Eqn.(1) is similar to a linear layer:
+y = W1x + x, for which we have not observed advantages.
+We also note that although the above notations are about
+fully-connected layers for simplicity, they are applicable to
+convolutional layers. The function F (x, {Wi }) can repre-
+sent multiple convolutional layers. The element-wise addi-
+tion is performed on two feature maps, channel by channel.
+
+3.3. Network Architectures
+
+We have tested various plain/residual nets, and have ob-
+served consistent phenomena. To provide instances for dis-
+cussion, we describe two models for ImageNet as follows.
+
+Plain Network. Our plain baselines (Fig. 3, middle) are
+mainly inspired by the philosophy of VGG nets [40] (Fig. 3,
+left). The convolutional layers mostly have 3×3 ﬁlters and
+follow two simple design rules:
+(i) for the same output
+feature map size, the layers have the same number of ﬁl-
+ters; and (ii) if the feature map size is halved, the num-
+ber of ﬁlters is doubled so as to preserve the time com-
+plexity per layer. We perform downsampling directly by
+convolutional layers that have a stride of 2. The network
+ends with a global average pooling layer and a 1000-way
+fully-connected layer with softmax. The total number of
+weighted layers is 34 in Fig. 3 (middle).
+It is worth noticing that our model has fewer ﬁlters and
+lower complexity than VGG nets [40] (Fig. 3, left). Our 34-
+layer baseline has 3.6 billion FLOPs (multiply-adds), which
+is only 18% of VGG-19 (19.6 billion FLOPs).
+
+3772
+
+7x7 conv, 64, /2
+
+pool, /2
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 128, /2
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 256, /2
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 512, /2
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+avg pool
+
+fc 1000
+
+image
+
+3x3 conv, 512
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+pool, /2
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+pool, /2
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+pool, /2
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+pool, /2
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+pool, /2
+
+fc 4096
+
+fc 4096
+
+fc 1000
+
+image
+
+output 
+size 112
+
+output 
+size 224
+
+output 
+size 56
+
+output 
+size 28
+
+output 
+size 14
+
+output 
+size 7
+
+output 
+size 1
+
+VGG-19
+
+34-layer plain
+
+7x7 conv, 64, /2
+
+pool, /2
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 64
+
+3x3 conv, 128, /2
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 128
+
+3x3 conv, 256, /2
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 256
+
+3x3 conv, 512, /2
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+3x3 conv, 512
+
+avg pool
+
+fc 1000
+
+image
+
+34-layer residKal
+
+Figure 3. Example network architectures for ImageNet. Left: the
+VGG-19 model [40] (19.6 billion FLOPs) as a reference. Mid-
+dle: a plain network with 34 parameter layers (3.6 billion FLOPs).
+Right: a residual network with 34 parameter layers (3.6 billion
+FLOPs). The dotted shortcuts increase dimensions. Table 1 shows
+more details and other variants.
+
+Residual Network. Based on the above plain network, we
+insert shortcut connections (Fig. 3, right) which turn the
+network into its counterpart residual version. The identity
+shortcuts (Eqn.(1)) can be directly used when the input and
+output are of the same dimensions (solid line shortcuts in
+Fig. 3). When the dimensions increase (dotted line shortcuts
+in Fig. 3), we consider two options: (A) The shortcut still
+performs identity mapping, with extra zero entries padded
+for increasing dimensions. This option introduces no extra
+parameter; (B) The projection shortcut in Eqn.(2) is used to
+match dimensions (done by 1×1 convolutions). For both
+options, when the shortcuts go across feature maps of two
+sizes, they are performed with a stride of 2.
+
+3.4. Implementation
+
+Our implementation for ImageNet follows the practice
+in [21, 40]. The image is resized with its shorter side ran-
+domly sampled in [256, 480] for scale augmentation [40].
+A 224×224 crop is randomly sampled from an image or its
+horizontal ﬂip, with the per-pixel mean subtracted [21]. The
+standard color augmentation in [21] is used. We adopt batch
+normalization (BN) [16] right after each convolution and
+before activation, following [16]. We initialize the weights
+as in [12] and train all plain/residual nets from scratch. We
+use SGD with a mini-batch size of 256. The learning rate
+starts from 0.1 and is divided by 10 when the error plateaus,
+and the models are trained for up to 60 × 104 iterations. We
+use a weight decay of 0.0001 and a momentum of 0.9. We
+do not use dropout [13], following the practice in [16].
+In testing, for comparison studies we adopt the standard
+10-crop testing [21]. For best results, we adopt the fully-
+convolutional form as in [40, 12], and average the scores
+at multiple scales (images are resized such that the shorter
+
+side is in {224, 256, 384, 480, 640}).
+
+4. Experiments
+
+4.1. ImageNet Classiﬁcation
+
+We evaluate our method on the ImageNet 2012 classiﬁ-
+cation dataset [35] that consists of 1000 classes. The models
+are trained on the 1.28 million training images, and evalu-
+ated on the 50k validation images. We also obtain a ﬁnal
+result on the 100k test images, reported by the test server.
+We evaluate both top-1 and top-5 error rates.
+
+Plain Networks. We ﬁrst evaluate 18-layer and 34-layer
+plain nets. The 34-layer plain net is in Fig. 3 (middle). The
+18-layer plain net is of a similar form. See Table 1 for de-
+tailed architectures.
+The results in Table 2 show that the deeper 34-layer plain
+net has higher validation error than the shallower 18-layer
+plain net. To reveal the reasons, in Fig. 4 (left) we com-
+pare their training/validation errors during the training pro-
+cedure. We have observed the degradation problem - the
+
+4773
+
+layer name output size
+112×112
+
+18-layer
+
+34-layer
+
+50-layer
+7×7, 64, stride 2
+3×3 max pool, stride 2
+1×1, 64
+3×3, 64
+1×1, 256
+
+101-layer
+
+152-layer
+
+conv1
+
+conv2 x
+
+56×56
+
+(cid:2) 3×3, 64
+3×3, 64 (cid:3)×2
+
+(cid:2) 3×3, 64
+3×3, 64 (cid:3)×3
+3×3, 128 (cid:3)×4 ⎡
+(cid:2) 3×3, 128
+3×3, 128 (cid:3)×2 (cid:2) 3×3, 128
+(cid:2) 3×3, 256
+3×3, 256 (cid:3)×2 (cid:2) 3×3, 256
+3×3, 256 (cid:3)×6 ⎡
+3×3, 512 (cid:3)×3 ⎡
+(cid:2) 3×3, 512
+3×3, 512 (cid:3)×2 (cid:2) 3×3, 512
+average pool, 1000-d fc, softmax
+3.8×109
+7.6×109
+
+⎡
+⎣
+
+⎤
+
+×3
+×4
+
+⎡
+⎣
+⎤
+⎡
+
+⎣
+×6 ⎡
+⎤
+⎣
+×3 ⎡
+⎤
+⎣
+
+1×1, 64
+3×3, 64
+1×1, 256
+
+⎤
+
+×3
+×4
+×23 ⎡
+×3
+
+⎡
+⎣
+⎡
+⎣
+
+1×1, 64
+3×3, 64
+1×1, 256
+
+⎤
+
+×3
+×8
+
+conv3 x
+
+28×28
+
+⎣
+
+1×1, 128
+3×3, 128
+1×1, 512
+
+1×1, 128
+3×3, 128
+1×1, 512
+
+⎤
+
+⎤
+
+1×1, 128
+3×3, 128
+1×1, 512
+
+⎤
+
+⎤
+
+conv4 x
+
+14×14
+
+⎣
+
+1×1, 256
+3×3, 256
+1×1, 1024
+
+1×1, 256
+3×3, 256
+1×1, 1024
+
+⎣
+⎡
+⎣
+
+1×1, 256
+3×3, 256
+1×1, 1024
+
+×36
+×3
+
+conv5 x
+
+7×7
+
+⎣
+
+1×1, 512
+3×3, 512
+1×1, 2048
+
+1×1, 512
+3×3, 512
+1×1, 2048
+
+⎤
+
+1×1, 512
+3×3, 512
+1×1, 2048
+
+⎤
+
+1×1
+
+FLOPs
+
+1.8×109
+
+3.6×109
+
+11.3×109
+
+Table 1. Architectures for ImageNet. Building blocks are shown in brackets (see also Fig. 5), with the numbers of blocks stacked. Down-
+sampling is performed by conv3 1, conv4 1, and conv5 1 with a stride of 2.
+
+20
+0
+
+10
+
+20
+
+30
+iter. (1e4)
+
+40
+
+50
+
+30
+
+40
+
+50
+
+60
+
+e
+
+r
+r
+
+o
+
+r
+
+(
+
+%
+
+)
+
+plain-18
+plain-34
+
+20
+0
+
+10
+
+20
+
+30
+iter. (1e4)
+
+40
+
+50
+
+30
+
+40
+
+50
+
+60
+
+e
+
+r
+r
+
+o
+
+r
+
+(
+
+%
+
+)
+
+ResNet-18
+ResNet-34
+
+18-layer
+
+34-layer
+
+18-layer
+
+34-layer
+
+Figure 4. Training on ImageNet. Thin curves denote training error, and bold curves denote validation error of the center crops. Left: plain
+networks of 18 and 34 layers. Right: ResNets of 18 and 34 layers. In this plot, the residual networks have no extra parameter compared to
+their plain counterparts.
+
+plain
+
+ResNet
+
+18 layers
+34 layers
+
+27.94
+28.54
+
+27.88
+25.03
+
+Table 2. Top-1 error (%, 10-crop testing) on ImageNet validation.
+Here the ResNets have no extra parameter compared to their plain
+counterparts. Fig. 4 shows the training procedures.
+
+34-layer plain net has higher training error throughout the
+whole training procedure, even though the solution space
+of the 18-layer plain network is a subspace of that of the
+34-layer one.
+
+We argue that this optimization difﬁculty is unlikely to
+be caused by vanishing gradients. These plain networks are
+trained with BN [16], which ensures forward propagated
+signals to have non-zero variances. We also verify that the
+backward propagated gradients exhibit healthy norms with
+BN. So neither forward nor backward signals vanish.
+In
+fact, the 34-layer plain net is still able to achieve compet-
+itive accuracy (Table 3), suggesting that the solver works
+to some extent. We conjecture that the deep plain nets may
+have exponentially low convergence rates, which impact the
+
+reducing of the training error3 . The reason for such opti-
+mization difﬁculties will be studied in the future.
+
+Residual Networks. Next we evaluate 18-layer and 34-
+layer residual nets (ResNets). The baseline architectures
+are the same as the above plain nets, expect that a shortcut
+connection is added to each pair of 3×3 ﬁlters as in Fig. 3
+(right). In the ﬁrst comparison (Table 2 and Fig. 4 right),
+we use identity mapping for all shortcuts and zero-padding
+for increasing dimensions (option A). So they have no extra
+parameter compared to the plain counterparts.
+We have three major observations from Table 2 and
+Fig. 4. First, the situation is reversed with residual learn-
+ing – the 34-layer ResNet is better than the 18-layer ResNet
+(by 2.8%). More importantly, the 34-layer ResNet exhibits
+considerably lower training error and is generalizable to the
+validation data. This indicates that the degradation problem
+is well addressed in this setting and we manage to obtain
+accuracy gains from increased depth.
+Second, compared to its plain counterpart, the 34-layer
+
+3We have experimented with more training iterations (3×) and still ob-
+served the degradation problem, suggesting that this problem cannot be
+feasibly addressed by simply using more iterations.
+
+5774
+
+model
+
+top-1 err.
+
+top-5 err.
+
+64-d
+
+2#6-d
+
+VGG-16 [40]
+
+GoogLeNet [43]
+
+PReLU-net [12]
+
+plain-34
+
+ResNet-34 A
+
+ResNet-34 B
+
+ResNet-34 C
+
+ResNet-50
+
+ResNet-101
+
+ResNet-152
+
+28.07
+-
+24.27
+
+28.54
+25.03
+24.52
+24.19
+
+22.85
+21.75
+21.43
+
+9.33
+9.15
+7.38
+
+10.02
+7.76
+7.46
+7.40
+
+6.71
+6.05
+5.71
+
+Table 3. Error rates (%, 10-crop testing) on ImageNet validation.
+VGG-16 is based on our test. ResNet-50/101/152 are of option B
+that only uses projections for increasing dimensions.
+
+method
+
+top-1 err.
+
+top-5 err.
+
+VGG [40] (ILSVRC’14)
+GoogLeNet [43] (ILSVRC’14)
+
+VGG [40] (v5)
+PReLU-net [12]
+BN-inception [16]
+
+ResNet-34 B
+ResNet-34 C
+ResNet-50
+ResNet-101
+ResNet-152
+
+-
+-
+
+24.4
+21.59
+21.99
+
+21.84
+21.53
+20.74
+19.87
+19.38
+
+8.43†
+7.89
+
+7.1
+5.71
+5.81
+
+5.71
+5.60
+5.25
+4.60
+4.49
+
+Table 4. Error rates (%) of single-model results on the ImageNet
+validation set (except † reported on the test set).
+
+method
+
+top-5 err. (test)
+
+VGG [40] (ILSVRC’14)
+GoogLeNet [43] (ILSVRC’14)
+
+VGG [40] (v5)
+PReLU-net [12]
+BN-inception [16]
+
+ResNet (ILSVRC’15)
+
+7.32
+6.66
+
+6.8
+4.94
+4.82
+
+3.57
+
+Table 5. Error rates (%) of ensembles. The top-5 error is on the
+test set of ImageNet and reported by the test server.
+
+ResNet reduces the top-1 error by 3.5% (Table 2), resulting
+from the successfully reduced training error (Fig. 4 right vs.
+left). This comparison veriﬁes the effectiveness of residual
+learning on extremely deep systems.
+Last, we also note that the 18-layer plain/residual nets
+are comparably accurate (Table 2), but the 18-layer ResNet
+converges faster (Fig. 4 right vs. left). When the net is “not
+overly deep” (18 layers here), the current SGD solver is still
+able to ﬁnd good solutions to the plain net. In this case, the
+ResNet eases the optimization by providing faster conver-
+gence at the early stage.
+
+Identity vs. Projection Shortcuts. We have shown that
+
+3x3, 64
+
+relu
+
+3x3, 64
+
+relu
+
+1x1, 64
+
+relu
+
+3x3, 64
+
+relu
+
+1x1, 2#6
+
+relu
+
+Figure 5. A deeper residual function F for ImageNet. Left: a
+building block (on 56×56 feature maps) as in Fig. 3 for ResNet-
+34. Right: a “bottleneck” building block for ResNet-50/101/152.
+
+parameter-free, identity shortcuts help with training. Next
+we investigate projection shortcuts (Eqn.(2)). In Table 3 we
+compare three options: (A) zero-padding shortcuts are used
+for increasing dimensions, and all shortcuts are parameter-
+free (the same as Table 2 and Fig. 4 right); (B) projec-
+tion shortcuts are used for increasing dimensions, and other
+shortcuts are identity; and (C) all shortcuts are projections.
+Table 3 shows that all three options are considerably bet-
+ter than the plain counterpart. B is slightly better than A. We
+argue that this is because the zero-padded dimensions in A
+indeed have no residual learning. C is marginally better than
+B, and we attribute this to the extra parameters introduced
+by many (thirteen) projection shortcuts. But the small dif-
+ferences among A/B/C indicate that projection shortcuts are
+not essential for addressing the degradation problem. So we
+do not use option C in the rest of this paper, to reduce mem-
+ory/time complexity and model sizes. Identity shortcuts are
+particularly important for not increasing the complexity of
+the bottleneck architectures that are introduced below.
+
+Deeper Bottleneck Architectures. Next we describe our
+deeper nets for ImageNet. Because of concerns on the train-
+ing time that we can afford, we modify the building block
+as a bottleneck design4 . For each residual function F , we
+use a stack of 3 layers instead of 2 (Fig. 5). The three layers
+are 1×1, 3×3, and 1×1 convolutions, where the 1×1 layers
+are responsible for reducing and then increasing (restoring)
+dimensions, leaving the 3×3 layer a bottleneck with smaller
+input/output dimensions. Fig. 5 shows an example, where
+both designs have similar time complexity.
+The parameter-free identity shortcuts are particularly im-
+portant for the bottleneck architectures. If the identity short-
+cut in Fig. 5 (right) is replaced with projection, one can
+show that the time complexity and model size are doubled,
+as the shortcut is connected to the two high-dimensional
+ends. So identity shortcuts lead to more efﬁcient models
+for the bottleneck designs.
+50-layer ResNet: We replace each 2-layer block in the
+
+4Deeper non-bottleneck ResNets (e.g., Fig. 5 left) also gain accuracy
+from increased depth (as shown on CIFAR-10), but are not as economical
+as the bottleneck ResNets. So the usage of bottleneck designs is mainly due
+to practical considerations. We further note that the degradation problem
+of plain nets is also witnessed for the bottleneck designs.
+
+6775
+
+34-layer net with this 3-layer bottleneck block, resulting in
+a 50-layer ResNet (Table 1). We use option B for increasing
+dimensions. This model has 3.8 billion FLOPs.
+101-layer and 152-layer ResNets: We construct 101-
+layer and 152-layer ResNets by using more 3-layer blocks
+(Table 1). Remarkably, although the depth is signiﬁcantly
+increased, the 152-layer ResNet (11.3 billion FLOPs) still
+has lower complexity than VGG-16/19 nets (15.3/19.6 bil-
+lion FLOPs).
+The 50/101/152-layer ResNets are more accurate than
+the 34-layer ones by considerable margins (Table 3 and 4).
+We do not observe the degradation problem and thus en-
+joy signiﬁcant accuracy gains from considerably increased
+depth. The beneﬁts of depth are witnessed for all evaluation
+metrics (Table 3 and 4).
+
+Comparisons with State-of-the-art Methods. In Table 4
+we compare with the previous best single-model results.
+Our baseline 34-layer ResNets have achieved very compet-
+itive accuracy. Our 152-layer ResNet has a single-model
+top-5 validation error of 4.49%. This single-model result
+outperforms all previous ensemble results (Table 5). We
+combine six models of different depth to form an ensemble
+(only with two 152-layer ones at the time of submitting).
+This leads to 3.57% top-5 error on the test set (Table 5).
+This entry won the 1st place in ILSVRC 2015.
+
+4.2. CIFAR-10 and Analysis
+
+We conducted more studies on the CIFAR-10 dataset
+[20], which consists of 50k training images and 10k test-
+ing images in 10 classes. We present experiments trained
+on the training set and evaluated on the test set. Our focus
+is on the behaviors of extremely deep networks, but not on
+pushing the state-of-the-art results, so we intentionally use
+simple architectures as follows.
+The plain/residual architectures follow the form in Fig. 3
+(middle/right). The network inputs are 32×32 images, with
+the per-pixel mean subtracted. The ﬁrst layer is 3×3 convo-
+lutions. Then we use a stack of 6n layers with 3×3 convo-
+lutions on the feature maps of sizes {32, 16, 8} respectively,
+with 2n layers for each feature map size. The numbers of
+ﬁlters are {16, 32, 64} respectively. The subsampling is per-
+formed by convolutions with a stride of 2. The network ends
+with a global average pooling, a 10-way fully-connected
+layer, and softmax. There are totally 6n+2 stacked weighted
+layers. The following table summarizes the architecture:
+
+output map size
+
+32×32
+
+16×16
+
+8×8
+
+# layers
+# ﬁlters
+
+1+2n
+16
+
+2n
+32
+
+2n
+64
+
+When shortcut connections are used, they are connected
+to the pairs of 3×3 layers (totally 3n shortcuts). On this
+dataset we use identity shortcuts in all cases (i.e., option A),
+
+method
+Maxout [9]
+NIN [25]
+DSN [24]
+# layers
+19
+19
+32
+20
+32
+44
+56
+110
+1202
+
+FitNet [34]
+Highway [41, 42]
+Highway [41, 42]
+ResNet
+ResNet
+ResNet
+ResNet
+ResNet
+ResNet
+
+error (%)
+9.38
+8.81
+8.22
+
+7.54 (7.72±0.16)
+
+8.39
+
+# params
+2.5M
+2.3M
+1.25M 8.80
+0.27M 8.75
+0.46M 7.51
+0.66M 7.17
+0.85M 6.97
+1.7M
+19.4M 7.93
+
+6.43 (6.61±0.16)
+
+Table 6. Classiﬁcation error on the CIFAR-10 test set. All meth-
+ods are with data augmentation. For ResNet-110, we run it 5 times
+and show “best (mean±std)” as in [42].
+
+so our residual models have exactly the same depth, width,
+and number of parameters as the plain counterparts.
+We use a weight decay of 0.0001 and momentum of 0.9,
+and adopt the weight initialization in [12] and BN [16] but
+with no dropout. These models are trained with a mini-
+batch size of 128 on two GPUs. We start with a learning
+rate of 0.1, divide it by 10 at 32k and 48k iterations, and
+terminate training at 64k iterations, which is determined on
+a 45k/5k train/val split. We follow the simple data augmen-
+tation in [24] for training: 4 pixels are padded on each side,
+and a 32×32 crop is randomly sampled from the padded
+image or its horizontal ﬂip. For testing, we only evaluate
+the single view of the original 32×32 image.
+We compare n = {3, 5, 7, 9}, leading to 20, 32, 44, and
+56-layer networks. Fig. 6 (left) shows the behaviors of the
+plain nets. The deep plain nets suffer from increased depth,
+and exhibit higher training error when going deeper. This
+phenomenon is similar to that on ImageNet (Fig. 4, left) and
+on MNIST (see [41]), suggesting that such an optimization
+difﬁculty is a fundamental problem.
+Fig. 6 (middle) shows the behaviors of ResNets. Also
+similar to the ImageNet cases (Fig. 4, right), our ResNets
+manage to overcome the optimization difﬁculty and demon-
+strate accuracy gains when the depth increases.
+We further explore n = 18 that leads to a 110-layer
+ResNet. In this case, we ﬁnd that the initial learning rate
+of 0.1 is slightly too large to start converging5 . So we use
+0.01 to warm up the training until the training error is below
+80% (about 400 iterations), and then go back to 0.1 and con-
+tinue training. The rest of the learning schedule is as done
+previously. This 110-layer network converges well (Fig. 6,
+middle). It has fewer parameters than other deep and thin
+
+5With an initial learning rate of 0.1, it starts converging (<90% error)
+after several epochs, but still reaches similar accuracy.
+
+7776
+
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+5
+
+10
+
+20
+
+iter. (1e4)
+
+e
+
+r
+r
+
+o
+
+r
+
+(
+
+%
+
+)
+
+plain-20
+plain-32
+plain-44
+plain-56
+
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+5
+
+10
+
+20
+
+iter. (1e4)
+
+e
+
+r
+r
+
+o
+
+r
+
+(
+
+%
+
+)
+
+ResNet-20
+ResNet-32
+ResNet-44
+ResNet-56
+ResNet-110
+
+56-lay er
+
+20-lay er
+
+110-lay er
+
+20-lay er
+
+4
+
+5
+
+6
+
+1
+0
+
+5
+
+10
+
+20
+
+iter. (1e4)
+
+e
+
+r
+r
+
+o
+
+r
+
+(
+
+%
+
+)
+
+residual-110
+residual-1202
+
+Figure 6. Training on CIFAR-10. Dashed lines denote training error, and bold lines denote testing error. Left: plain networks. The error
+of plain-110 is higher than 60% and not displayed. Middle: ResNets. Right: ResNets with 110 and 1202 layers.
+
+0
+
+20
+
+40
+
+60
+
+80
+
+100
+
+1
+
+2
+
+3
+
+layer index (sorted by magnitude)
+
+s
+
+t
+
+d
+
+plain-20
+plain-56
+ResNet-20
+ResNet-56
+ResNet-110
+
+0
+
+20
+
+40
+
+60
+
+80
+
+100
+
+1
+
+2
+
+3
+
+layer index (original)
+
+s
+
+t
+
+d
+
+plain-20
+plain-56
+ResNet-20
+ResNet-56
+ResNet-110
+
+Figure 7. Standard deviations (std) of layer responses on CIFAR-
+10. The responses are the outputs of each 3×3 layer, after BN and
+before nonlinearity. Top: the layers are shown in their original
+order. Bottom: the responses are ranked in descending order.
+
+networks such as FitNet [34] and Highway [41] (Table 6),
+yet is among the state-of-the-art results (6.43%, Table 6).
+
+Analysis of Layer Responses. Fig. 7 shows the standard
+deviations (std) of the layer responses. The responses are
+the outputs of each 3×3 layer, after BN and before other
+nonlinearity (ReLU/addition). For ResNets, this analy-
+sis reveals the response strength of the residual functions.
+Fig. 7 shows that ResNets have generally smaller responses
+than their plain counterparts. These results support our ba-
+sic motivation (Sec.3.1) that the residual functions might
+be generally closer to zero than the non-residual functions.
+We also notice that the deeper ResNet has smaller magni-
+tudes of responses, as evidenced by the comparisons among
+ResNet-20, 56, and 110 in Fig. 7. When there are more
+layers, an individual layer of ResNets tends to modify the
+signal less.
+
+Exploring Over 1000 layers. We explore an aggressively
+deep model of over 1000 layers. We set n = 200 that
+leads to a 1202-layer network, which is trained as described
+above. Our method shows no optimization difﬁculty, and
+this 103 -layer network is able to achieve training error
+<0.1% (Fig. 6, right).
+Its test error is still fairly good
+(7.93%, Table 6).
+But there are still open problems on such aggressively
+deep models. The testing result of this 1202-layer network
+is worse than that of our 110-layer network, although both
+
+training data
+test data
+VGG-16
+ResNet-101
+
+07+12
+VOC 07 test
+73.2
+76.4
+
+07++12
+VOC 12 test
+70.4
+73.8
+
+Table 7. Object detection mAP (%) on the PASCAL VOC
+2007/2012 test sets using baseline Faster R-CNN. See also ap-
+pendix for better results.
+
+metric
+VGG-16
+ResNet-101
+
+mAP@.5
+41.5
+48.4
+
+mAP@[.5, .95]
+21.2
+27.2
+
+Table 8. Object detection mAP (%) on the COCO validation set
+using baseline Faster R-CNN. See also appendix for better results.
+
+have similar training error. We argue that this is because of
+overﬁtting. The 1202-layer network may be unnecessarily
+large (19.4M) for this small dataset. Strong regularization
+such as maxout [9] or dropout [13] is applied to obtain the
+best results ([9, 25, 24, 34]) on this dataset. In this paper, we
+use no maxout/dropout and just simply impose regulariza-
+tion via deep and thin architectures by design, without dis-
+tracting from the focus on the difﬁculties of optimization.
+But combining with stronger regularization may improve
+results, which we will study in the future.
+
+4.3. Object Detection on PASCAL and MS COCO
+
+Our method has good generalization performance on
+other recognition tasks. Table 7 and 8 show the object de-
+tection baseline results on PASCAL VOC 2007 and 2012
+[5] and COCO [26]. We adopt Faster R-CNN [32] as the de-
+tection method. Here we are interested in the improvements
+of replacing VGG-16 [40] with ResNet-101. The detection
+implementation (see appendix) of using both models is the
+same, so the gains can only be attributed to better networks.
+Most remarkably, on the challenging COCO dataset we ob-
+tain a 6.0% increase in COCO’s standard metric (mAP@[.5,
+.95]), which is a 28% relative improvement. This gain is
+solely due to the learned representations.
+Based on deep residual nets, we won the 1st places in
+several tracks in ILSVRC & COCO 2015 competitions: Im-
+ageNet detection, ImageNet localization, COCO detection,
+and COCO segmentation. The details are in the appendix.
+
+8777
+
+[28] G. Mont ´ufar, R. Pascanu, K. Cho, and Y. Bengio. On the number of
+linear regions of deep neural networks. In NIPS, 2014.
+[29] V. Nair and G. E. Hinton. Rectiﬁed linear units improve restricted
+boltzmann machines. In ICML, 2010.
+[30] F. Perronnin and C. Dance. Fisher kernels on visual vocabularies for
+image categorization. In CVPR, 2007.
+[31] T. Raiko, H. Valpola, and Y. LeCun. Deep learning made easier by
+linear transformations in perceptrons. In AISTATS, 2012.
+[32] S. Ren, K. He, R. Girshick, and J. Sun. Faster R-CNN: Towards
+real-time object detection with region proposal networks. In NIPS,
+2015.
+[33] B. D. Ripley. Pattern recognition and neural networks. Cambridge
+university press, 1996.
+[34] A. Romero, N. Ballas, S. E. Kahou, A. Chassang, C. Gatta, and
+Y. Bengio. Fitnets: Hints for thin deep nets. In ICLR, 2015.
+[35] O. Russakovsky, J. Deng, H. Su, J. Krause, S. Satheesh, S. Ma,
+Z. Huang, A. Karpathy, A. Khosla, M. Bernstein, et al.
+Imagenet
+large scale visual recognition challenge. arXiv:1409.0575, 2014.
+[36] A. M. Saxe, J. L. McClelland, and S. Ganguli. Exact solutions to
+the nonlinear dynamics of learning in deep linear neural networks.
+arXiv:1312.6120, 2013.
+[37] N. N. Schraudolph. Accelerated gradient descent by factor-centering
+decomposition. Technical report, 1998.
+[38] N. N. Schraudolph. Centering neural network gradient factors. In
+Neural Networks: Tricks of the Trade, pages 207–226. Springer,
+1998.
+[39] P. Sermanet, D. Eigen, X. Zhang, M. Mathieu, R. Fergus, and Y. Le-
+Cun. Overfeat: Integrated recognition, localization and detection
+using convolutional networks. In ICLR, 2014.
+[40] K. Simonyan and A. Zisserman. Very deep convolutional networks
+for large-scale image recognition. In ICLR, 2015.
+[41] R. K. Srivastava, K. Greff, and J. Schmidhuber. Highway networks.
+arXiv:1505.00387, 2015.
+[42] R. K. Srivastava, K. Greff, and J. Schmidhuber. Training very deep
+networks. 1507.06228, 2015.
+[43] C. Szegedy, W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Er-
+han, V. Vanhoucke, and A. Rabinovich. Going deeper with convolu-
+tions. In CVPR, 2015.
+[44] R. Szeliski. Fast surface interpolation using hierarchical basis func-
+tions. TPAMI, 1990.
+[45] R. Szeliski. Locally adapted hierarchical basis preconditioning. In
+SIGGRAPH, 2006.
+[46] T. Vatanen, T. Raiko, H. Valpola, and Y. LeCun. Pushing stochas-
+tic gradient towards second-order methods–backpropagation learn-
+ing with transformations in nonlinearities.
+In Neural Information
+Processing, 2013.
+[47] A. Vedaldi and B. Fulkerson. VLFeat: An open and portable library
+of computer vision algorithms, 2008.
+[48] W. Venables and B. Ripley. Modern applied statistics with s-plus.
+1999.
+[49] M. D. Zeiler and R. Fergus. Visualizing and understanding convolu-
+tional neural networks. In ECCV, 2014.
+
+References
+
+[1] Y. Bengio, P. Simard, and P. Frasconi. Learning long-term dependen-
+cies with gradient descent is difﬁcult. IEEE Transactions on Neural
+Networks, 5(2):157–166, 1994.
+[2] C. M. Bishop. Neural networks for pattern recognition. Oxford
+university press, 1995.
+[3] W. L. Briggs, S. F. McCormick, et al. A Multigrid Tutorial. Siam,
+2000.
+[4] K. Chatﬁeld, V. Lempitsky, A. Vedaldi, and A. Zisserman. The devil
+is in the details: an evaluation of recent feature encoding methods.
+In BMVC, 2011.
+[5] M. Everingham, L. Van Gool, C. K. Williams, J. Winn, and A. Zis-
+serman. The Pascal Visual Object Classes (VOC) Challenge. IJCV,
+pages 303–338, 2010.
+[6] R. Girshick. Fast R-CNN. In ICCV, 2015.
+[7] R. Girshick, J. Donahue, T. Darrell, and J. Malik. Rich feature hier-
+archies for accurate object detection and semantic segmentation. In
+CVPR, 2014.
+[8] X. Glorot and Y. Bengio. Understanding the difﬁculty of training
+deep feedforward neural networks. In AISTATS, 2010.
+[9] I. J. Goodfellow, D. Warde-Farley, M. Mirza, A. Courville, and
+Y. Bengio. Maxout networks. arXiv:1302.4389, 2013.
+[10] K. He and J. Sun. Convolutional neural networks at constrained time
+cost. In CVPR, 2015.
+[11] K. He, X. Zhang, S. Ren, and J. Sun. Spatial pyramid pooling in deep
+convolutional networks for visual recognition. In ECCV, 2014.
+[12] K. He, X. Zhang, S. Ren, and J. Sun. Delving deep into rectiﬁers:
+Surpassing human-level performance on imagenet classiﬁcation. In
+ICCV, 2015.
+[13] G. E. Hinton, N. Srivastava, A. Krizhevsky, I. Sutskever, and
+R. R. Salakhutdinov. Improving neural networks by preventing co-
+adaptation of feature detectors. arXiv:1207.0580, 2012.
+[14] S. Hochreiter. Untersuchungen zu dynamischen neuronalen netzen.
+Diploma thesis, TU Munich, 1991.
+[15] S. Hochreiter and J. Schmidhuber. Long short-term memory. Neural
+computation, 9(8):1735–1780, 1997.
+[16] S. Ioffe and C. Szegedy. Batch normalization: Accelerating deep
+network training by reducing internal covariate shift. In ICML, 2015.
+[17] H. Jegou, M. Douze, and C. Schmid. Product quantization for nearest
+neighbor search. TPAMI, 33, 2011.
+[18] H. Jegou, F. Perronnin, M. Douze, J. Sanchez, P. Perez, and
+C. Schmid. Aggregating local image descriptors into compact codes.
+TPAMI, 2012.
+[19] Y. Jia, E. Shelhamer, J. Donahue, S. Karayev, J. Long, R. Girshick,
+S. Guadarrama, and T. Darrell. Caffe: Convolutional architecture for
+fast feature embedding. arXiv:1408.5093, 2014.
+[20] A. Krizhevsky. Learning multiple layers of features from tiny im-
+ages. Tech Report, 2009.
+[21] A. Krizhevsky, I. Sutskever, and G. Hinton. Imagenet classiﬁcation
+with deep convolutional neural networks. In NIPS, 2012.
+[22] Y. LeCun, B. Boser, J. S. Denker, D. Henderson, R. E. Howard,
+W. Hubbard, and L. D. Jackel. Backpropagation applied to hand-
+written zip code recognition. Neural computation, 1989.
+[23] Y. LeCun, L. Bottou, G. B. Orr, and K.-R. M ¨uller. Efﬁcient backprop.
+In Neural Networks: Tricks of the Trade, pages 9–50. Springer, 1998.
+[24] C.-Y. Lee, S. Xie, P. Gallagher, Z. Zhang, and Z. Tu. Deeply-
+supervised nets. arXiv:1409.5185, 2014.
+[25] M. Lin, Q. Chen, and S. Yan. Network in network. arXiv:1312.4400,
+2013.
+[26] T.-Y. Lin, M. Maire, S. Belongie, J. Hays, P. Perona, D. Ramanan,
+P. Doll ´ar, and C. L. Zitnick. Microsoft COCO: Common objects in
+context. In ECCV. 2014.
+[27] J. Long, E. Shelhamer, and T. Darrell. Fully convolutional networks
+for semantic segmentation. In CVPR, 2015.
+
+9778
+
+第 41 卷 第 1 期
+
+2015 年 1 月
+
+北 京 工 业 大 学 学 报
+
+JOURNAL OF BEIJING UNIVERSITY OF TECHNOLOGY
+
+Vol. 41 No. 1
+Jan. 2015
+
+深度学习研究综述
+
+尹宝才, 王文通, 王立春
+
+( 北京工业大学 城市交通学院 多媒体与智能软件技术北京市重点实验室, 北京摇 100124)
+摘摇 要: 鉴于深度学习在学术界和工业界的重要性,依据数据流向对目前有代表性的深度学习算法进行归纳和总
+结,综述了不同类型深度网络的结构及特点. 首先介绍了深度学习的概念;然后根据深度学习算法的结构特征,概
+述了前馈深度网络、反馈深度网络和双向深度网络 3 类主流深度学习算法的网络结构和训练方法;最后介绍了深
+度学习算法在不同数据处理中的最新应用现状及其发展趋势. 可以看到:深度学习在不同应用领域都取得了明显
+的优势,但仍存在需要进一步探索的问题,如无标记数据的特征学习、网络模型规模与训练速度精度之间的权衡、
+与其他方法的融合等.
+关键词: 深度学习; 深度神经网络; 卷积神经网络; 反卷积网络; 深度玻尔兹曼机
+文献标志码: A
+
+文章编号: 0254 - 0037(2015)01 - 0048 - 12
+
+中图分类号: TP 391郾 41
+doi: 10 . 11936 / bjutxb2014100026
+
+Review of Deep Learning
+
+YIN Bao鄄cai, WANG Wen鄄tong, WANG Li鄄chun
+
+( Beijing Key Laboratory of Multimedia and Intelligent Software Technology, College of Metropolitan Transportation,
+Beijing University of Technology, Beijing 100124, China)
+
+Abstract: Considering deep learning蒺s importance in academic research and industry application, this
+paper reviews methods and applications of deep learning . First, the concept of deep learning is
+introduced, and the main stream deep learning algorithms are classified into three classes: feed鄄forward
+deep networks, feed鄄back deep networks and bi鄄directional deep networks according to the architectural
+characteristics. Second, network architectures and training methods of the three types of deep networks
+are reviewed . Finally, state鄄of鄄the鄄art applications of mainstream deep learning algorithms is illustrated
+and trends of deep learning is concluded . Although deep learning algorithms outperform traditional
+methods in many fields, there are still many issues, such as feature learning on unlabeled data; the
+balance among network scale, training speed and accuracy; and model fusion .
+Key words: deep learning; deep neural networks; convolutional neural network; deconvolutional
+network; deep Boltzmann machines
+
+1 摇 深度学习
+
+深度学习是机器学习领域一个新的研究方向,
+近年来在语音识别、计算机视觉等多类应用中取得
+
+突破性的进展 [ 1 鄄20] . 其动机在于建立模型模拟人类
+大脑的神经连接结构,在处理图像、声音和文本这些
+信号时,通过多个变换阶段分层对数据特征进行描
+述 [ 21 鄄22] ,进而给出数据的解释. 以图像数据为例,灵
+
+收稿日期: 2014 鄄 09 鄄 05
+
+ybc@ bjut. edu. cn
+
+基金项目: 国家自然科学基金资助项目(61390512)
+作者简介: 尹宝才(1963—) , 男, 教授, 主要从事数字多媒体技术、多功能感知技术、虚拟现实与图形学方面的研究,E鄄mail:
+
+摇 第 1 期
+
+尹宝才, 等: 深度学习研究综述
+
+94
+
+量 机 ( support vector machine, SVM ) 、 提 升 方 法
+
+能力不足 [ 21,27] .
+Hinton 等 [ 26] 于 2006 年提出,指基于样本数据通过
+
+长类的视觉系统中对这类信号的处理依次为:首先
+检测边缘、初始形状,然后再逐步形成更复杂的视觉
+形状 [ 22] ,同样地,深度学习通过组合低层特征形成
+更加抽象的高层表示、属性类别或特征,给出数据的
+分层特征表示.
+深度学习之所以被称为 “ 深度冶 ,是相对支撑向
+( boosting) 、最大熵方法等 “ 浅层学习冶 方法而言的,
+深度学习所学得的模型中,非线性操作的层级数 [ 21]
+更多. 浅层学习依靠人工经验抽取样本特征,网络
+模 型 学 习 后 获 得 的 是 没 有 层 次 结 构 的 单 层 特
+征 [ 23 鄄25] ;而深度学习通过对原始信号进行逐层特征
+变换,将样本在原空间的特征表示变换到新的特征
+空间,自动地学习得到层次化的特征表示,从而更有
+利于分类或特征的可视化 [ 26] . 深度学习理论的另
+外一个理论动机是:如果一个函数可用 k 层结构以
+简洁的形式表达,那么用 k - 1 层的结构表达则可能
+需要指数级数量的参数( 相对于输入信号) ,且泛化
+深度学习的概念最早由多伦多大学的 G. E .
+的机器学习过程 [ 21] . 传统的神经网络随机初始化
+一定的训练方法得到包含多个层级的深度网络结构
+网络中的权值,导致网络很容易收敛到局部最小值,
+为解决这一问题,Hinton 提出使用无监督预训练方
+法优化网络权值的初值,再进行权值微调的方法,拉
+开了深度学习的序幕.
+深度学习所得到的深度网络结构包含大量的单
+一元素( 神经元) ,每个神经元与大量其他神经元相
+连接,神经元间的连接强度 ( 权值) 在学习过程中修
+改并决定网络的功能. 通过深度学习得到的深度网
+络结构符合神经网络的特征 [ 28] ,因此深度网络就是
+深层次的神 经 网 络, 即 深 度 神 经 网 络 ( deep neural
+深度神经网络是由多个单层非线性网络叠加而
+成的 [ 21,29] ,常见的单层网络按照编码解码情况分为
+3 类:只包含编码器部分、只包含解码器部分、既有
+编码器部分也有解码器部分. 编码器提供从输入到
+隐含特征空间的自底向上的映射,解码器以重建结
+果尽可能接近原始输入为目标将隐含特征映射到输
+入空间 [ 30] . 深度神经网络分为以下 3 类( 如图 1 所
+
+networks, DNN) .
+
+示) .
+
+1 ) 前馈深度网络 ( feed鄄forward deep networks,
+
+FFDN) ,由多个编码器层叠加而成,如多层感知机
+
+( multi鄄layer perceptrons, MLP) [ 31 鄄32] 、卷积神经网络
+( convolutional neural networks, CNN) [ 33 鄄34] 等.
+2 ) 反 馈 深 度 网 络 ( feed鄄back deep networks,
+( deconvolutional networks, DN) [ 30] 、层次稀疏编码网
+络( hierarchical sparse coding, HSC) [ 35] 等.
+3 ) 双向深度网络( bi鄄directional deep networks,
+
+FBDN) ,由多个解码器层叠加而成,如反卷积网络
+
+BDDN) ,通 过 叠 加 多 个 编 码 器 层 和 解 码 器 层 构 成
+( 每层可能是单独的编码过程或解码过程,也可能
+既包含编码过程也包含解码过程 ) ,如深度玻尔兹
+
+曼机( deep Boltzmann machines,DBM ) [ 36 鄄37] 、深度信
+念网络 ( deep belief networks,DBN) [ 26] 、栈式自编码
+器( stacked auto鄄encoders,SAE) [ 38] 等.
+
+图 1 摇 深度神经网络分类结构
+
+Fig. 1 摇 Classification of deep neural networks
+
+摇
+
+2 摇 前馈深度网络
+
+前馈神经网络是最初的人工神经网络模型之
+一. 在这种网络中,信息只沿一个方向流动,从输入
+单元通过一个或多个隐层到达输出单元,在网络中
+没有封闭环路. 典型的前馈神经网络有多层感知
+
+机 [ 29 鄄30] 和卷积神经网络 [ 32 鄄33] 等.
+F. Rosenblatt [ 39] 提出的感知机是最简单的单层
+
+前向人工神经网络,但随后 M. Minsky 等 [ 40] 证明单
+层感知机无法解决线性不可分问题 ( 如异或操作) ,
+这一结论将人工神经网络研究领域引入到一个低潮
+期,直到研究人员认识到多层感知机可解决线性不
+可分问题 [ 31 鄄32] ,以及反向传播算法与神经网络结合
+的研究 [ 41 鄄43] 使得神经网络的研究重新开始成为热
+点. 但是由于传统的反向传播算法 [ 41 鄄43] 具有收敛速
+度慢、需要大量带标签的训练数据、容易陷入局部最
+优等缺点,多层感知机的效果并不是十分理想.
+概念 [ 45] 提出的神经认知机可看作卷积神经网络的
+
+1984 年日本学者 K. Fukushima 等基于感受野
+
+一种特例 [ 45] , Y. Lecun 等 [ 33 鄄34] 提出的卷积神经网
+
+络是神经认知机的推广形式. 卷积神经网络是由多
+个单层卷积神经网络组成的可训练的多层网络结
+构. 每个单层卷积神经网络包括卷积、非线性变换
+
+05
+
+北摇 京摇 工摇 业摇 大摇 学摇 学摇 报
+
+2015 年
+
+和下采样 3 个阶段 [ 46] ,其中下采样阶段不是每层都
+必需的. 每层的输入和输出为一组向量构成的特征
+图( feature map) ( 第一层的原始输入信号可以看作
+一个具有高稀疏度的高维特征图) . 例如,输入部分
+是一张彩色图像,每个特征图对应的则是一个包含
+输入图像彩色通道的二维数组 ( 对于音频输入,特
+
+征图对应的是一维向量;对于视频或立体影像,对应
+的是三维数组) ;对应的输出部分,每个特征图对应
+的是表示从输入图片所有位置上提取的特定特征.
+2郾 1 摇 单层卷积神经网络
+卷积、非线性变换和下采样 3 个阶段构成的单
+层卷积神经网络如图 2 所示.
+
+图 2 摇 单层卷积神经网络的 3 个阶段
+
+Fig. 2 摇 Three phases of a single layer convolutional neural network
+
+数有更快的收敛速度,因此在训练整个网络时,训练
+速度也比传统的方法快很多 [ 1] . 4 种非线性操作函
+数的公式为
+
+摇
+
+摇
+
+核,其定义源于由 D. H. Hubel 等 [ 44] 基于对猫视觉
+
+摇 卷积阶段,通过提取信号的不同特征实现输入
+信号进行特定模式的观测. 其观测模式也称为卷积
+皮层细胞研究提出的局部感受野概念. 每个卷积核
+检测输入特征图上所有位置上的特定特征,实现同
+一个输入特征图上的权值共享 [ 34] . 为了提取输入
+特征图上不同的特征,使用不同的卷积核进行卷积
+操作.
+卷积阶段的输入是由 n1 个 n2 伊 n3 大小的二维
+特征图构成的三维数组. 每个特征图记为 x i . 该阶
+段的输出 y 也是个三维数组,由 m1 个 m2 伊 m3 大小
+的特征图构成. 在卷积阶段,连接输入特征图 x i 和
+输出特征图 y j 的权值记为 w ij ,即可训练的卷积核
+
+( 局部感受野 [ 44,46] ) ,卷积核的大小为 k2 伊 k3 . 输出
+
+特征图为
+
+式中:*为二维离散卷积运算符; b j 是可训练的偏置
+参数.
+非线性阶段,对卷积阶段得到的特征按照一定
+的原则进行筛选,筛选原则通常采用非线性变换的
+方式,以避免线性模型表达能力不够的问题.
+非线性阶段将卷积阶段提取的特征作为输入,
+进行非线性映射 R = h( y) . 传统卷积神经网络中非
+
+线性操作采用 sigmoid、 tanh 或 softsign 等饱和非线
+性( saturating nonlinearities ) 函数 [ 47] ,近几年的卷积
+神经 网 络 中 多 采 用 不 饱 和 非 线 性 ( non鄄saturating
+nonlinearity) 函数 ReLU( rectified linear units) [ 1,48 鄄50] .
+
+在训练梯度下降时, ReLU 比传统的饱和非线性函
+
+y j = b j + 移i
+
+w ij*x i
+
+(1 )
+
+sigmoid:
+
+tanh:
+
+softsign:
+
+ReLU:
+
+R =
+
+1
+1 + e - y
+R = e y - e - y
+e y + e - y
+
+y
+
+R =
+
+1 + | y |
+R = max(0 ,y)
+
+(2 )
+
+(3 )
+
+(4 )
+
+(5 )
+
+采用平均池化( average pooling) 或者最大池化( max
+
+其函数形态如图 3 所示.
+下采样阶段,对每个特征图进行独立操作,通常
+pooling) 的操作. 平均池化依据定义的邻域窗口计
+算特定范围内像素的均值 P A ,邻域窗口平移步长大
+于 1 ( 小于等于池化窗口的大小) ;最大池化则将均
+值 P A替换为最值 P M输出到下个阶段. 池化操作后,
+输出特征图的分辨率降低,但能较好地保持高分辨
+率特征图描述的特征. 一些卷积神经网络完全去掉
+下采样阶段,通过在卷积阶段设置卷积核窗口滑动
+步长大于 1 达到降低分辨率的目的 [ 33,51] .
+2郾 2 摇 卷积神经网络
+如图 4 所示,将单层的卷积神经网络进行多次
+堆叠,前一层的输出作为后一层的输入,便构成卷积
+神经网络. 其中每 2 个节点间的连线,代表输入节
+
+摇 第 1 期
+
+尹宝才, 等: 深度学习研究综述
+
+15
+
+图 3 摇 4 种非线性操作函数
+
+Fig. 3 摇 Four nonlinear operation functions
+
+摇
+
+点经过卷积、非线性变换、下采样 3 个阶段变为输出
+节点,一般最后一层的输出特征图后接一个全连接
+层和分类器. 为了减少数据的过拟合,最近的一些
+
+卷积神经 网 络, 在 全 连 接 层 引 入 “ Dropout 冶 [ 1,52] 或
+“ DropConnect冶 [ 53] 的方法,即在训练过程中以一定
+
+概率 P 将隐含层节点的输出值( 对于“ DropConnect冶
+
+为输入权值) 清 0 ,而用反向传播算法更新权值时,
+不再更新与该节点相连的权值. 但是这 2 种方法都
+在训练卷积神经网络时,最常用的方法是采用
+反向传播法则 [ 42 鄄43,54] 以及有监督的训练方式,算法
+流程如图 5 所示. 网络中信号是前向传播的,即从
+输入特征向输出特征的方向传播,第 1 层的输入 X,
+经过多个卷积神经网络层,变成最后一层输出的特
+征图 O. 将输出特征图 O 与期望的标签 T 进行比
+较,生成误差项 E . 通过遍历网络的反向路径,将误
+
+会降低训练速度 [ 1,48,53] .
+
+图 4 摇 卷积神经网络模型
+
+Fig. 4 摇 Convolutional neural network model
+
+摇
+
+差逐层 传 递 到 每 个 节 点, 根 据 权 值 更 新 公 式 ( 式
+(6 ) ) ,更新相应的卷积核权值 w ij . 在训练过程中,
+网络中权值的初值通常随机初始化( 也可通过无监
+督的方式进行预训练 [ 55] ) ,网络误差随迭代次数的
+增加而减少,并且这一过程收敛于一个稳定的权值
+集合,额外的训练次数呈现出较小的影响.
+对于卷积网络的任意一层 L,其第 i 个输入特征
+X i和第 j 个 输 出 特 征 Y j 之 间 的 权 值 w ij 的 更 新 公
+
+式 [ 43] 为
+
+驻w ij = 琢啄 j X i
+
+(6 )
+
+当 L 层是卷积网络的最后一层时,如图 6 ( a) 所
+示,啄 j 为
+
+图 5 摇 卷积神经网络训练过程
+
+Fig. 5 摇 Training convolutional neural network
+
+25
+
+北摇 京摇 工摇 业摇 大摇 学摇 学摇 报
+
+2015 年
+
+啄 j = ( T j - Y j ) h忆L ( X i )
+
+的导数;j = 1 ,2 ,…,N L .
+
+式中:T j为第 j 个预期标签;h忆( x) 为非线性映射函数
+式(6 ) 中,当 L 层不是最后一层时,如图 6 ( b )
+所示,L + 1 层是其下一层,则 啄 j 为
+
+(7 )
+
+(8 )
+
+啄 j = h忆L ( X i ) 移N L +1
+
+m = 1
+
+啄 m w jm
+
+2 ,…,N L + 1 ;w jm为 L 层的第 j 个输出( 作为 L + 1 层的
+
+式中: N L + 1 为 第 L + 1 层 输 出 特 征 的 数 目; m = 1 ,
+第 j 个输入) 与 L + 1 层第 m 个输出之间的权值.
+
+图 6 摇 卷积神经网络第 L 层权值 w ij 更新
+( 实线为与计算相关的连接关系)
+
+Fig. 6 摇 Update w ij , weight of layer L in CNN
+
+摇
+
+2郾 3 摇 卷积神经网络的特点
+卷积神经网络的特点在于,采用原始信号 ( 一
+般为图像) 直接作为网络的输入,避免了传统识别
+算法中复杂的特征提取和图像重建过程;局部感受
+野方法获取的观测特征与平移、缩放和旋转无关.
+卷积阶段利用权值共享结构减少了权值的数量进而
+降低了网络模型的复杂度,这一点在输入特征图是
+高分辨率图像时表现得更为明显. 同时,下采样阶
+段利用图像局部相关性的原理对特征图进行子抽
+样,在保留有用结构信息的同时有效地减少数据处
+理量.
+
+3 摇 反馈深度网络
+
+与前馈网络不同,反馈网络并不是对输入信号
+进行编码, 而是通过解反卷积 [ 30] 或学习数据集的
+基 [ 35,56] ,对输入信号进行反解. 前馈网络是对输入
+信号进行编码的过程,而反馈网络则是对输入信号
+解码的过程.
+典型的反馈深度网络有反卷积网络 [ 30] 、层次稀
+
+疏编码网络 [ 35] 等.
+
+以反卷积网络为例, M. D. Zeiler 等 [ 30] 提出的
+
+反卷积网络模型和 Y. LeCun 等 [ 33 鄄34] 提出的卷积神
+经网络思想类似,但在实际的结构构件和实现方法
+上有所不同. 卷积神经网络是一种自底向上的方
+法,该方法的每层输入信号经过卷积、非线性变换和
+下采样 3 个阶段处理,进而得到多层信息. 相比之
+下,反卷积网络模型的每层信息是自顶向下的,组合
+通过滤波器组学习得到的卷积特征来重构输入信
+号. 层次稀疏编码网络和反卷积网络非常相似,只
+是在反卷积网络中对图像的分解采用矩阵卷积的形
+式,而在稀疏编码中采用矩阵乘积的方式 [ 35] .
+3郾 1 摇 单层反卷积网络
+反卷积网络是通过先验学习,对信号进行稀疏
+分解和重构的正则化方法. 图 7 所示是一个单层反
+卷积网 络 模 型, 输 入 信 号 y 由 K0 个 特 征 通 道 y1 ,
+组成,其中任意一个通道 y c 可看作 K1 个隐
+层特征图 z k 与 滤 波 器 组 f k,c ( 个 数 为 K0 伊 K1 ) 的
+卷积.
+
+y2 ,…,y K0
+
+图 7 摇 单层反卷积模型
+
+Fig. 7 摇 Single layer of deconvolutional net
+
+摇
+
+k = 1
+
+(9 )
+
+z k*f k,c = y c
+
+移K1
+由于式(9 ) 是一个欠定 ( 未知数的个数多于方
+程个数) 的函数,为了求得其唯一解,需要引入一个
+关于特征图 z k 的正则项,且该正则项使得特征图 z k
+趋于稀疏. 于是代价函数为
+c = 1 移K1
+式中:第 1 项为输入图像与重建结果的误差;第 2 项
+为特征图的稀疏程度,为 p 范数,一般取 p = 1 ;姿 为
+平衡重建误差和特征图稀疏度的权重系数.
+
+C1 ( y) = 姿
+
+2
+2 + 移K1
+
+z k*f k,c - y c
+
+| z k | p
+
+(10 )
+
+2 移K2
+
+k = 1
+
+k = 1
+
+摇 第 1 期
+
+尹宝才, 等: 深度学习研究综述
+
+35
+
+3郾 2 摇 反卷积网络
+通过将 3郾 1 节所述单层反卷积网络进行多层叠
+加,可得到反卷积网络,如图 8 所示. 多层模型中,
+在学习滤波器组的同时进行特征图的推导,第 L 层
+的特征图和滤波器是由第 L - 1 层的特征图通过反
+卷积计算分解获得.
+
+C l ( y) = 姿
+
+2 移l
+
+i = 1 移K l -1
+c = 1 移K l
+i = 1 移K l
+k = 1
+k = 1
+
+移l
+
+g l
+
+k,c ( z i
+k,i*f l
+k,c ) - z i
+c,l - 1
+
+| z i
+
+k,l | p
+
+2
+
+2 +
+(11 )
+
+图 8 摇 反卷积网络模型
+
+Fig. 8 摇 Decovolutional network model
+
+摇
+
+{ y1 ,y2 ,…,y l } ,求解 argmin f,z C l ( y) ,利用式(11 ) ,进
+
+反卷积网络训练时,使用一组不同的信号 y =
+行滤波器组 f 和特征图 z 的迭代交替优化 [ 30] . 训练
+从第 1 层开始,采用贪心算法,逐层向上进行优化,
+各层间的优化是独立的.
+在反卷积网络中,单层网络的代价函数 ( 为当
+前层所有输入信号的代价函数之和) 为
+
+中:z i
+z i
+
+式中第 1 项为前一层与当前层重建目标的误差. 其
+k,l是当前层的特征图;f l
+k,c 是当前层的滤波器组;
+c,l - 1 是前一层的特征图;g l
+k,c表示同一层中输入特征
+图与输出特征图之间的连通情况,是一个固定的二
+值矩阵. 通常假定第 1 层是全连接的,后边的层为
+稀疏连接. 第 2 项为特征图的稀疏程度; 姿 是平衡
+重建误差和特征图稀疏度的权重系数.
+3郾 3 摇 反卷积网络的特点
+反卷积网络的特点在于,通过求解最优化输入
+信号分解问题计算特征,而不是利用编码器进行近
+似,这样能使隐层的特征更加精准,更有利于信号的
+
+分类或重建.
+
+4 摇 双向深度网络
+
+双向网络由多个编码器层和解码器层叠加形
+成,每层可能是单独的编码过程或解码过程,也可能
+同时包含编码过程和解码过程. 双向网络的结构结
+合了编码器和解码器 2 类单层网络结构,双向网络
+的学习则结合了前馈网络和反馈网络的训练方法,
+通常包括单层网络的预训练和逐层反向迭代误差 2
+个部分,单层网络的预训练多采用贪心算法:每层使
+用输入信号 I L与权值 w 计算生成信号 I L + 1 传递到下
+一层,信号 I L + 1 再与相同的权值 w 计算生成重构信
+号 I忆L 映射回输入层,通过不断缩小 I L 与 I忆L 间的误
+差,训练每层网络;网络结构中各层网络结构都经过
+预训练之后,再通过反向迭代误差对整个网络结构
+进行权值微调. 其中单层网络的预训练是对输入信
+号编码和解码的重建过程,这与反馈网络训练方法
+类似;而基于反向迭代误差的权值微调与前馈网络
+训练方法类似.
+典型的双向深度网络有深度玻尔兹曼机 [ 36 鄄37] 、
+深度信念网络 [ 26] 、栈式自编码器 [ 38] 等.
+以深度玻尔兹曼机为例,深度玻尔兹曼机由 R.
+
+Salakhutdinov 等 [ 36] 提出,它由多层受限玻尔兹曼机
+
+( restricted Boltzmann machine, RBM ) [ 57 鄄59] 叠 加
+
+构成.
+4郾 1 摇 受限玻尔兹曼机
+
+玻尔兹 曼 机 ( Boltzmann machine, BM ) 是 一 种
+
+随机的 递 归 神 经 网 络, 由 G. E . Hinton 等 [ 60 鄄62] 提
+
+出,是能通过学习数据固有内在表示、解决复杂学习
+问题的最早的人工神经网络之一. 玻尔兹曼机由二
+值神经元构成,每个神经元只取 0 或 1 两种状态,状
+态 1 代表该神经元处于激活状态,0 表示该神经元
+处于抑制状态. 然而,即使使用模拟退火算法,这个
+网络的学习过程也十分慢.
+Hinton 等提出的受限玻尔兹曼机 [ 57 鄄59] 去掉了玻
+尔兹曼机同层之间的连接,从而大大提高了学习效
+率. 受限玻尔兹曼机分为可见层 v 以及隐层 h,可见
+层和隐层的节点通过权值 w 相连接,2 层节点之间
+是全连接,同层节点间互不相连,如图 9 所示.
+受限玻尔兹曼机一种典型的训练方法如图 10
+所示,首先随机初始化可见层,然后在可见层与隐层
+之间交替进行吉布斯采样:用条件分布概率 P( h | v)
+计算隐层;再根据隐层节点,同样用条件分布概率
+P( v | h)来计算可见层;重复这一采样过程直到可见
+
+45
+
+北摇 京摇 工摇 业摇 大摇 学摇 学摇 报
+
+2015 年
+
+图 9 摇 受限玻尔兹曼机( 单层深度玻尔兹曼机)
+
+Fig. 9 摇 Restricted Boltzmann machine ( single layer
+of deep Boltzmann machines)
+
+算法,称作对比离差 ( contrastive divergence, CD ) 学
+
+层和隐层达到平稳分布. 而 Hinton 提出了一种快速
+习算法 [ 37,59,63] . 这种算法使用训练数据初始化可见
+层,只需迭代 k 次上述采样过程( 即每次迭代包括从
+可见层更新隐层,以及从隐层更新可见层) ,就可获
+得对模型的估计( 通常 k = 1 ) .
+
+摇
+
+摇
+
+图 11 摇 深度玻尔兹曼机
+
+Fig. 11 摇 Deep Boltzmann machines
+
+摇
+
+深度玻尔兹曼机训练分为 2 个阶段:预训练阶
+段和微调阶段,如图 12 所示.
+在预训练阶段,采用无监督的逐层贪心训练方
+法来训练网络每层的参数,即先训练网络的第 1 个
+隐含层,然后接着训练第 2 ,3 ,…个隐含层,最后用
+这些训练好的网络参数值作为整体网络参数的初始
+值. 预训练之后,将训练好的每层受限玻尔兹曼机
+叠加形成深度玻尔兹曼机,利用有监督的学习对网
+络进行训练( 一般采用反向传播算法) .
+由于深度玻尔兹曼机随机初始化权值以及微调
+阶段采用有监督的学习方法,这些都容易使网络陷
+入局部最小值. 而采用无监督预训练的方法,有利
+
+图 10 摇 受限玻尔兹曼机的训练过程
+
+Fig. 10 摇 Training procedure of restricted Boltzmann machine
+
+4郾 2 摇 深度玻尔兹曼机
+将多个受限玻尔兹曼机堆叠,前一层的输出作
+为后一层的输入,便构成了深度玻尔兹曼机,如图
+11 所示. 网络中所有节点间的连线都是双向的.
+
+图 12 摇 深度玻尔兹曼机逐层贪心训练方法
+
+Fig. 12 摇 Greedy layer鄄wise pre鄄training of DBM
+
+摇 第 1 期
+
+于避免陷入局部最小值问题 [ 64] .
+
+5 摇 深度学习应用
+
+( CD鄄DNN鄄HMM) [ 2] ,比之前最领先的基于常规 CD鄄
+少 16% 以上.
+Switchboard 标准数据集上对 CD鄄DNN鄄HMM 模型进
+
+深度学习目前在很多领域都优于过去的方法,
+下面根据所处理数据类型的不同,对深度学习的应
+用进行介绍.
+5郾 1摇 深度学习在语音识别、合成及机器翻译中的应用
+微软研究人员使用深度信念网络对数以千计的
+senones( 一种比音素小很多的建模单元) 直接建模,
+提出了第 1 个成功应用于大词汇量语音识别系统的
+上下文相关的深层神经网络 - 隐马尔可夫混合模型
+GMM鄄HMM 的大词汇量语音识别系统相对误差率减
+随 后 又 在 含 有 300 h 语 音 训 练 数 据 的
+行评测 [ 65] . 基准测试字词错误率为 18郾 5% ,与之前
+最领先的常规系统相比,相对错误率减少了 33% .
+H. Zen 等 [ 3] 提出一种基于多层感知机的语音
+合成模型. 该模型先将输入文本转换为一个输入特
+征序列,输入特征序列的每帧分别经过多层感知机
+映射到各自的输出特征,然后采用文献 [ 66 ] 中的算
+法,生成语音参数,最后经过声纹合成生成语音. 训
+练数据包含由一名女性专业演讲者以美国英语录制
+的 3郾 3 万段语音素材,其合成结果的主观评价和客
+观评价均优于基于 HMM 方法的模型.
+K. Cho 等 [ 67] 提 出 一 种 基 于 循 环 神 经 网 络
+模型( RNNenc 模型 ) ,应用于机器翻译. 该模型包
+含 2 个 RNN,一个 RNN 用于将一组源语言符号序
+列编码为一组固定长度的向量,另一个 RNN 将该向
+量解码为一组目标语言的符号序列.
+文献[67 ] 中固定长度的缺点( 固定长度是其效果提
+升的瓶颈) ,提出了 RNNsearch 的模型. 该模型在翻
+译每个单词时,根据该单词在源文本中最相关信息
+的位置以及已翻译出的其他单词,预测对应于该单
+词的目标单词. 该模型包含一个双向 RNN 作为编
+码器,以及一个用于单词翻译的解码器. 在进行目
+标单词位置预测时,使用一个多层感知机模型进行
+
+( recurrent neural network, RNN) 的向量化定长表示
+
+在该模型的基础上, D. Bahdanau 等 [ 4] 克服了
+
+位置对齐. 采用 BLEU 评价指标,RNNsearch 模型在
+ACL2014 机器翻译研讨会( ACL WMT 2014 ) 提供的
+
+英 / 法双语并行语料库 [ 68] 上的翻译结果评分均高于
+RNNenc 模型的评分,略低于传统的基于短语的翻
+
+尹宝才, 等: 深度学习研究综述
+
+55
+
+译系统 Moses [ 69] ( 本身包含具有 4郾 18 亿个单词的多
+语言语料库) . 另外,在剔除包含未知词汇语句的测
+5郾 2 摇 深度学习在图像分类及识别中的应用
+5郾 2郾 1 摇 深度学习在大规模图像数据集中的应用
+
+试预料库上,RNNsearch 的评分甚至超过了 Moses.
+
+A. Krizhevsky 等 [ 1] 首次将卷积神经网络应用
+
+于 ImageNet 大规模视觉识别挑战赛 ( ImageNet large
+scale visual recognition challenge, ILSVRC ) [ 70] 中,所
+
+训练的深度卷积神经网络 [ 1] 在 ILSVRC—2012 挑战
+
+在 ILSVRC—2013 比赛中,M. D. Zeiler 等 [ 5] 采
+
+11郾 2% . 在目标定位任务中,P. Sermanet 等 [ 6] 采用
+
+赛中,取得了图像分类和目标定位任务的第一. 其
+中,图像分类任务中,前 5 选项错误率为 15郾 3% ,远
+低于第 2 名的 26郾 2% 的错误率; 在目标 定 位 任 务
+中,前 5 选项错误率 34% ,也远低于第 2 名的 50% .
+用卷积神经网络的方法,对文献 [ 1 ] 的方法进行了
+改进,并在每个卷积层上附加一个反卷积层用于中
+间层特征的可视化 [ 5,30] ,取得了图像分类任务的第
+一名. 其 前 5 选 项 错 误 率 为 11郾 7% , 如 果 采 用
+ILSVRC—2011 数据进 行 预 训 练, 错 误 率 则 降 低 到
+卷积神经网络结合多尺度滑动窗口的方法,可同时
+进行图像分类、定位和检测,是比赛中唯一一个同时
+参加所有任务的队伍. 多目标检测任务中,获胜队
+伍的方法在特征提取阶段没有使用深度学习模型,
+只在分类时采用卷积网络分类器进行重打分 [ 7] .
+伍都采用了卷积神经网络及其变形方法 [ 7] . 其中
+论提出的多尺度的模型,以 6郾 7% 的分类错误,取得
+图形分类“ 指定数据冶 组的第一名;CASIAWS 小组采
+用弱监督定位和卷积神经网络结合的方法,取得图形
+分类“额外数据冶组的第一名,其分类错误率为 11% .
+在目标定位任务中, VGG 小组在深度学习框架
+Caffe 的基础上,采用 3 个结构不同的卷积神经网络
+进行平均评估,以 26% 的定位错误率取得 “ 指定数
+据冶 组 的 第 一 名; Adobe 组 选 用 额 外 的 2 000 类
+ImageNet 数据训练分类器,采用卷积神经网络架构
+进行分类和定位,以 30% 的错误率,取得了“ 额外数
+据冶 组的第一名.
+在多目标检测任务中,NUS 小组采用改进的卷
+NIN) [ 8] 与多种其他方法融合的模型,以 37% 的平均
+
+在 ILSVRC—2014 比赛中, 几乎所有的参赛队
+GoogLeNet 小组采用卷积神经网络结合 Hebbian 理
+
+积 神 经 网 络———网 中 网 ( network in network,
+准确率( mean average precision, mAP) 取得“ 提供数
+据冶 组的第一名;GoogLeNet 以 44% 的平均准确率取
+
+65
+
+北摇 京摇 工摇 业摇 大摇 学摇 学摇 报
+
+2015 年
+
+得“ 额外数据冶 组的第一名.
+从深度学习首次应用于 ILSVRC 挑战赛并取得
+突出的成绩,到 2014 年挑战赛中几乎所有参赛队伍
+都 采 用 深 度 学 习 方 法, 并 将 分 类 识 错 率 降 低 到
+6郾 7% ,可看出深度学习方法相比于传统的手工提取
+特征的方法在图像识别领域具有巨大优势.
+5郾 2郾 2 摇 深度学习在人脸识别中的应用
+基于卷积神经网络的学习方法,香港中文大学
+
+的 DeepID 项 目 [ 9] 以 及 Facebook 的 DeepFace 项
+目 [ 10] 在 户 外 人 脸 识 别 ( labeled faces in the wild,
+97郾 45% 和 97郾 35% ,只比人类识别 97郾 5% [ 72] 的正
+
+LFW) 数 据 库 [ 71] 上 的 人 脸 识 别 正 确 率 分 别 达
+确率略低一点点. DeepID 项目采用 4 层卷积神经网
+络( 不含输入层和输出层) 结构,DeepFace 采用 5 层
+卷积神经网络 ( 不含输入层和输出层,其中后 3 层
+没有采用权值共享以 获 得 不 同 的 局 部 统 计 特 征 )
+结构.
+之后,采用基于卷积神经网络的学习方法,香港
+中文大 学 的 DeepID2 项 目 [ 11] 将 识 别 率 提 高 到 了
+99郾 15% ,超过目前所有领先的深度学习 [ 9 鄄10] 和非深
+度学习算法 [ 73] 在 LFW 数据库上的识别率以及人类
+在该 数 据 库 的 识 别 率 [ 72] . DeepID2 项 目 采 用 和
+DeepID 项目类似的深度结构,包含 4 个卷积层,其
+中第 3 层采用 2 伊 2 邻域的局部权值共享,第 4 层没
+有采用权值共享,且输出层与第 3 、4 层都全连接.
+5郾 3 摇 深度学习在视频分类及行为识别中的应用
+
+A. Karpathy 等 [ 12] 基于卷积神经网络提供了一
+
+Sport s -1M 数据集 [ 12] 的 100 万段 YouTube 视频数据
+
+种应用于 大 规 模 视 频 分 类 上 的 经 验 评 估 模 型, 将
+分为 487 类. 该模型使用 4 种时空信息融合方法用
+于卷积神经网络的训练,融合方法包括单帧 ( single
+
+frame) 、不 相 邻 两 帧 ( late fusion ) 、 相 邻 多 帧 ( early
+fusion) 以及多阶段相邻多帧( slow fusion) ;此外提出
+
+了一种多分辨率的网络结构,大大提升了神经网络
+应用于大规模数据时的训练速度. 该模型在 Sports -
+1M 上的分类准确率达 63郾 9% ,相比于基于人工特
+征的方法(55郾 3% ) ,有很大提升. 此外,该模型表现
+出较好的泛化能力,单独使用 slow fusion 融合方法
+所得模型在 UCF -101 动作识别数据集 [ 74] 上的识别
+率为 65郾 4% ,而该数据集的基准识别率为 43郾 9% .
+S . Ji 等 [ 13] 提出一个三维卷积神经网络模型用
+于行为识别. 该模型通过在空间和时序上运用三维
+卷积提取特征,从而获得多个相邻帧间的运动信息.
+该模型基于输入帧生成多个特征图通道,将所有通
+
+M. Baccouche 等 [ 14] 提出一种时序的深度学习
+
+道的信息结合获得最后的特征表示. 该三维卷积神
+经网络模型在 TRECVID 数据上优于其他方法,表明
+该方法对于真实环境数据有较好的效果;该模型在
+KTH 数据上的表现,逊于其他方法,原因是为了简
+化计算而缩小了输入数据的分辨率.
+模型,可在没有任何先验知识的前提下,学习分类人
+体行为. 模型的第一步,是将卷积神经网络拓展到
+三维,自动学习时空特征. 接下来使用 RNN 方法训
+练分类每个序列. 该模型在 KTH 上的测试结果优
+于其他已知深度模型, KTH1 和 KTH2 上的精度分
+事实上,深度学习的应用远不止这些,但是本文
+只是分别从数据的维度上 ( 音频文本,一维;图像,
+二维;视频,三维) 对深度学习的典型应用进行详细
+介绍,目的在于突出深度学习带来的优越性能以及
+其对不同数据的应用能力. 其他应用还包括图像超
+
+别为 94郾 39% 和 92郾 17% .
+
+分辨率重建 [ 15 鄄16] 、纹理识别 [ 17] 、行人检测 [ 18] 、场景
+标记 [ 19] 、门牌识别 [ 20] 等.
+6 摇 深度学习的问题及趋势
+
+深度学习算法在计算机视觉 ( 图像识别、视频
+识别等) 和语音识别中的应用,尤其是大规模数据
+集下的应用取得突破性的进展,但仍有以下问题值
+得进一步研究:
+1 ) 无标记数据的特征学习. 目前,标记数据的
+特征学习仍然占据主导地位 [ 1,7] ,而真实世界存在
+着海量的无标记数据,将这些无标记数据逐一添加
+人工标签,显然是不现实的. 所以,随着数据集和存
+储技术的发展,必将越来越重视对无标记数据的特
+征学习,以及将无标记数据进行自动添加标签技术
+的研究.
+2 ) 模型规模与训练速度、 训练精度之间的权
+衡. 一般地,相同数据集下,模型规模越大,训练精
+度越高,训练速度会越慢. 例如一些模型方法采用
+ReLU 非 线 性 变 换、 GPU 运 算, 在 保 证 精 度 的 前 提
+下,往往需要训练 5 ~ 7 d [ 1,4] . 虽然离线训练并不影
+响训练之后模型的应用,但是对于模型优化,诸如模
+型规模调整、超参数设置、训练时调试等问题,训练
+时间会严重影响其效率. 故而,如何在保证一定的
+训练精度的前提下,提高训练速度,依然是深度学习
+方向研究的课题之一.
+3 ) 与其他方法的融合. 从上述应用实例中可
+发现,单一的深度学习方法,往往并不能带来最好的
+
+摇 第 1 期
+
+尹宝才, 等: 深度学习研究综述
+
+效果,通常融合其他方法或多种方法进行平均打分,
+会带来更高的精确率. 因此,深度学习方法与其他
+方法的融合,具有一定的研究意义.
+参考文献:
+
+[1] KRIZHEVSKY A, SUTSKEVER I, HINTON G E.
+Imagenet classification with deep convolutional neural
+networks[ C] 椅Advances in Neural Information Processing
+Systems. Red Hook, NY: Curran Associates, 2012: 1097 鄄
+1105 .
+[2 ] DAHL G E, YU D, DENG L, et al. Context鄄dependent
+pre鄄trained deep neural networks
+for
+large鄄vocabulary
+speech recognition [ J ] . Audio, Speech, and Language
+Processing, IEEE Transactions on, 2012, 20(1) : 30 鄄42 .
+[3] ZEN H, SENIOR A, SCHUSTER M . Statistical parametric
+speech synthesis using deep neural networks [ C ] 椅
+Acoustics, Speech and Signal Processing ( ICASSP) , 2013
+IEEE International Conference on. Piscataway, NJ: IEEE,
+2013: 7962 鄄7966 .
+[4 ] BAHDANAU D, CHO K, BENGIO Y. Neural machine
+translation by jointly learning to align and translate [ J ] .
+CoRR, 2014: abs / 1409 . 0473 .
+[5] ZEILER M D, FERGUS R. Visualizing and understanding
+convolutional neural networks [ J ] . CoRR, 2013: abs /
+1311 . 2901 .
+[6 ] SERMANET P, EIGEN D, ZHANG X, et al. Overfeat:
+integrated recognition, localization and detection using
+convolutional networks [ J ] . CoRR, 2013: abs / 1312 .
+6229 .
+[7] RUSSAKOVSKY O, DENG J, SU H, et al.
+ImageNet
+large scale visual recognition challenge[ J] . CoRR, 2014:
+abs / 1409 . 0575 .
+[8] LIN M, CHEN Q, YAN S. Network in network [ J ] .
+CoRR, 2013: abs / 1312 . 4400 .
+[9] SUN Y, WANG X, TANG X. Deep learning face
+representation from predicting 10, 000 classes [ C ] 椅
+Proceedings of the IEEE Conference on Computer Vision
+and Pattern Recognition. Piscataway, NJ: IEEE, 2014:
+1891 鄄1898 .
+[10] TAIGMAN Y, YANG M, RANZATO M A, et al.
+Deepface: closing the gap to human鄄level performance in
+face verification [ C ] 椅 Proceedings
+of
+the
+IEEE
+Conference on Computer Vision and Pattern Recognition.
+Piscataway, NJ: IEEE, 2014: 1701 鄄1708 .
+[11] SUN Y, WANG X, TANG X. Deep learning face
+representation by joint
+identification鄄verification [ J ] .
+CoRR, 2014: abs / 1406 . 4773 .
+[12] KARPATHY A, TODERICI G, SHETTY S, et al. Large鄄
+scale
+video
+classification with convolutional neural
+networks[ C] 椅IEEE Conference on Computer Vision and
+
+75
+Pattern Recognition ( CVPR ) . Piscataway, NJ: IEEE,
+2014: 1725 鄄1732 .
+[13] JI S, XU W, YANG M, et al. 3D convolutional neural
+networks for human action recognition [ J ] . Pattern
+Analysis and Machine Intelligence, IEEE Transactions
+on, 2013, 35(1) : 221 鄄231 .
+[14] BACCOUCHE M, MAMALET F, WOLF C, et al.
+Sequential deep learning for human action recognition[C]椅
+Human Behavior Understanding. Berlin: Springer, 2011:
+29 鄄39 .
+[15] DONG C, LOY C C, HE K, et al. Learning a deep
+convolutional network for image super鄄resolution [ C ] 椅
+Computer
+Vision鄄ECCV
+2014 .
+Cham:
+Springer
+International Publishing, 2014: 184 鄄199 .
+[16] CUI Z, CHANG H, SHAN S, et al. Deep network
+cascade for
+image super鄄resolution [ C ] 椅 Computer
+Vision鄄ECCV 2014 .
+Cham:
+Springer
+International
+Publishing, 2014: 49 鄄64 .
+[17] BADRI H, YAHIA H, DAOUDI K. Fast and accurate
+texture
+recognition with multilayer
+convolution and
+multifractal analysis[ C] 椅 Computer Vision鄄ECCV 2014 .
+Cham: Springer
+International Publishing, 2014: 505 鄄
+519 .
+[18] ZENG X, OUYANG W, WANG M, et al. Deep learning
+of scene鄄specific classifier for pedestrian detection[ C] 椅
+Computer
+Vision鄄ECCV
+2014 .
+Cham:
+Springer
+International Publishing, 2014: 472 鄄487 .
+[ 19] FARABET C, COUPRIE C, NAJMAN L, et al. Learning
+hierarchical
+features for scene labeling [ J ] . Pattern
+Analysis and Machine Intelligence, IEEE Transactions
+on, 2013, 35(8) : 1915 鄄1929 .
+[20] GOODFELLOW I J, BULATOV Y, IBARZ J, et al.
+Multi鄄digit number recognition from street view imagery
+using deep convolutional neural networks [ J ] . CoRR,
+2013: abs / 1312 . 6082 .
+[21] BENGIO Y. Learning deep architectures for AI [ J ] .
+Foundations and Trends in Machine Learning, 2009, 2
+(1) : 1 鄄127 .
+[22] SERRE T, KREIMAN G, KOUH M, et
+al. A
+quantitative theory of immediate visual recognition [ J ] .
+Progress in Brain Research, 2007, 165: 33 鄄56 .
+[23] LOWE D G. Distinctive image features from scale鄄
+invariant keypoints[ J] . International Journal of Computer
+Vision, 2004, 60(2) : 91 鄄110 .
+[24] DALAL N, TRIGGS B. Histograms of oriented gradients
+for human detection [ C ] 椅 Computer Vision and Pattern
+Recognition, 2005 .
+IEEE Computer Society Conference
+on. Piscataway, NJ: IEEE, 2005: 886 鄄893 .
+[25] OJALA T,
+PIETIKAINEN M, MAENPAA T.
+Multiresolution gray鄄scale and rotation invariant
+texture
+classification with local binary patterns [ J ] . Pattern
+
+85
+
+北摇 京摇 工摇 业摇 大摇 学摇 学摇 报
+
+Analysis and Machine Intelligence, IEEE Transactions
+on, 2002, 24(7) : 971 鄄987 .
+[26] HINTON G E, OSINDERO S, TEH Y W. A fast learning
+algorithm for deep belief nets [ J ] . Neural Computation,
+2006, 18(7) : 1527 鄄1554 .
+[27 ] H魡STAD J, GOLDMANN M . On the power of small鄄
+depth threshold circuits [ J ] . Computational Complexity,
+1991, 1(2) : 113 鄄129 .
+[28] PSALTIS D,
+SIDERIS A, YAMAMURA A.
+A
+multilayered neural network controller [ J] . IEEE Control
+Systems Magazine, 1988, 8(2) : 17 鄄21 .
+[29] BENGIO Y, LAMBLIN P, POPOVICI D, et al. Greedy
+layer鄄wise training of deep networks [ C ] 椅 Advances in
+Neural Information Processing Systems. Cambridge, MA:
+MIT Press, 2007: 153 鄄160 .
+[30] ZEILER M D, KRISHNAN D, TAYLOR G W, et al.
+Deconvolutional networks [ C ] 椅 Computer Vision and
+Pattern Recognition ( CVPR ) , 2010 IEEE Conference
+on. Piscataway, NJ: IEEE, 2010: 2528 鄄2535 .
+[31] HORNIK K, STINCHCOMBE M, WHITE H. Multilayer
+feedforward networks are universal approximators [ J ] .
+Neural Networks, 1989, 2(5) : 359 鄄366 .
+[32] GARDNER M W, DORLING S R. Artificial neural
+networks ( the multilayer perceptron ) —a review of
+applications in the atmospheric sciences[ J] . Atmospheric
+Environment, 1998, 32(14 / 15) : 2627 鄄2636 .
+[33] LeCun Y, BOSER B, DENKER J S, et al. Handwritten
+digit recognition with a back鄄propagation network [ C ] 椅
+Advances in Neural Information Processing Systems. San
+Francisco, CA: Morgan Kaufmann Publishers, 1990:
+396 鄄404 .
+[34] LeCun Y, BOTTOU L, BENGIO Y, et al. Gradient鄄
+based learning applied to document
+recognition [ J ] .
+Proceedings of the IEEE, 1998, 86(11) : 2278 鄄2324 .
+[35] YU K, LIN Y, LAFFERTY J.
+Learning
+image
+representations from the pixel level via hierarchical sparse
+coding [ C ] 椅 Computer Vision and Pattern Recognition
+( CVPR ) , 2011 IEEE Conference on. Piscataway, NJ:
+IEEE, 2011: 1713 鄄1720 .
+[36] SALAKHUTDINOV R, HINTON G E. Deep Boltzmann
+machines [ C ] 椅 JMLR Workshop and Conference
+Proceedings Volume 5: AISTATS 2009 . Brookline, MA:
+Microtome Publishing, 2009: 448 鄄455 .
+算机研究与发展, 2014, 51(1) : 1 鄄16 .
+LIU Jian鄄wei, LIU Yuan, LUO Xiong鄄lin. Research and
+development on Boltzmann machine [ J ] .
+Journal of
+Computer Research and Development, 2014, 51 ( 1 ) : 1 鄄
+16 . ( in Chinese)
+[38] VINCENT P, LAROCHELLE H, BENGIO Y, et al.
+Extracting and composing robust features with denoising
+
+[37] 刘建伟, 刘媛, 罗雄麟. 玻尔兹曼机研究进展[ J] . 计
+
+2015 年
+autoencoders [ C ] 椅 Proceedings of the 25 th international
+conference on Machine learning. New York, NY: ACM,
+2008: 1096 鄄1103 .
+[39] ROSENBLATT F. The perceptron: a probabilistic model
+for information storage and organization in the brain [ J ] .
+Psychological Review, 1958, 65(6) : 386 .
+[40] MINSKY M, PAPERT S. Perceptrons [ M] . Cambridge,
+MA: MIT Press, 1969: 105 鄄110 .
+[41] RUMELHART D E, HINTON G E, WILLIAMS R J.
+Learning representations by back鄄propagating errors [ J ] .
+Nature, 1986, 323: 533 鄄536 .
+[42] LeCun Y. Une procedure d蒺apprentissage pour reseau a
+seuil assymetrique[ J ] . Proceedings of Cognitiva, 1985,
+85: 599 鄄604 .
+[43] HINTON G E. How neural networks
+learn from
+experience [ J ] . Scientific American, 1992, 267 ( 3 ) :
+145 鄄151 .
+[44] HUBEL D H, WIESEL T N. Receptive fields, binocular
+interaction and functional architecture in the cat蒺s visual
+cortex[ J ] . The Journal of Physiology, 1962, 160 ( 1 ) :
+106 .
+[45] FUKUSHIMA K, MIYAKE S. Neocognitron: a new
+algorithm for pattern recognition tolerant of deformations
+and shifts in position[ J] . Pattern Recognition, 1982, 15
+(6) : 455 鄄469 .
+[46] LeCun Y, KAVUKCUOGLU K,
+FARABET C.
+Convolutional networks and applications in vision [ C ] 椅
+Circuits and Systems ( ISCAS ) , Proceedings of 2010
+IEEE International Symposium on. Piscataway, NJ:
+IEEE, 2010: 253 鄄256 .
+[47] GLOROT X, BENGIO Y. Understanding the difficulty of
+training deep feedforward neural networks [ C ] 椅
+International Conference on Artificial
+Intelligence and
+Statistics. Brookline, MA: 2010: 249 鄄256 .
+[48] DAHL G E, SAINATH T N, HINTON G E.
+Improving
+deep neural networks for LVCSR using rectified linear
+units and dropout [ C ] 椅 Acoustics, Speech and Signal
+Processing
+( ICASSP ) ,
+2013
+IEEE International
+Conference on. Piscataway, NJ: IEEE, 2013: 8609 鄄
+8613 .
+[49] NAIR V, HINTON G E. Rectified linear units improve
+restricted Boltzmann machines [ C ] 椅 Proceedings of the
+27 th International Conference
+on Machine Learning
+( ICML鄄10) . Madison, WI: Omnipress, 2010: 807 鄄814 .
+[ 50 ] GLOROT X, BORDES A, BENGIO Y. Deep sparse
+rectifier networks[ C] 椅 JMLR Workshop and Conference
+Proceedings Volume 15: AISTATS 2011 . Brookline,
+MA: Microtome Publishing, 2011: 315 鄄323 .
+[51] SIMARD P Y, STEINKRAUS D, PLATT J C. Best
+practices for convolutional neural networks applied to
+visual document analysis [ C ] 椅 Document Analysis and
+
+尹宝才, 等: 深度学习研究综述
+
+摇 第 1 期
+Recognition, 2003 . Proceedings Seventh International
+Conference
+on. Washington, DC: IEEE Computer
+Society, 2003, 2: 958 鄄963 .
+[52] HINTON G E, SRIVASTAVA N, KRIZHEVSKY A, et
+al. Improving neural networks by preventing co鄄adaptation
+of feature detectors[ J] . CoRR, 2012: abs / 1207 . 0580 .
+[53] WAN L, ZEILER M, ZHANG S, et al. Regularization of
+neural networks using dropconnect [ C ] 椅 Proceedings of
+the 30 th International Conference on Machine Learning.
+Brookline, MA: Microtome Publishing, 2013, 28 ( 3 ) :
+1058 鄄1066 .
+[54] BOUVRIE J. Notes on convolutional neural networks
+[ R ] . Massachusetts: Center
+for Biological
+and
+Computational Learning, 2006: 38 鄄44
+[ 55] JARRETT K, KAVUKCUOGLU K, RANZATO M, et al.
+What
+is the best multi鄄stage architecture for object
+recognition? [ C ] 椅 Computer Vision, 2009 IEEE 12 th
+International Conference on. Piscataway, NJ: IEEE,
+2009: 2146 鄄2153 .
+[56] OLSHAUSEN B A, FIELD D J. Sparse coding with an
+overcomplete basis set: a strategy employed by V1? [ J] .
+Vision Research, 1997, 37(23) : 3311 鄄3325 .
+[57] SMOLENSKY P.
+Information processing in dynamical
+systems: foundations of harmony theory [ M ] 椅Rumelhart
+D E, McClelland J L. Parallel Distributed Processing,
+Cambridge, MA: MIT Press, 1986: 194 鄄281 .
+[58 ] FREUND Y, HAUSSLER D. Unsupervised learning of
+distributions of binary vectors using two layer networks
+[ C ] 椅 Advances
+in Neural
+Information Processing
+Systems.
+San Francisco, CA: Morgan Kaufmann
+Publishers, 1994: 912 鄄919 .
+[59] HINTON G E. Training products of experts by minimizing
+contrastive divergence [ J ] . Neural Computation, 2002,
+14(8) : 1771 鄄1800 .
+[60] HINTON G E, SEJNOWSKI T J. Optimal perceptual
+inference[ C ] 椅 Proceedings of the IEEE Conference on
+Computer Vision and Pattern Recognition. Piscataway,
+NJ: IEEE, 1983: 448 鄄453 .
+[61 ] HINTON G E, SEJNOWSKI T J. Analysing cooperative
+computation [ C ] 椅 Proceedings of
+the Fifth Annual
+Conference of the Cognitive Science Society. Rochester,
+NY: Lawrence Erlbaum Associates, 1983 .
+[62] HINTON G E, SEJNOWSKI T J, ACKLEY D H.
+Boltzmann machines: constraint satisfaction networks that
+learn [ M ] . Pennsylvania: Department of Computer
+Science, 1984 .
+[63] HINTON G. A practical guide to training restricted
+Boltzmann machines [ R ] .
+Toronto : University
+of
+Toronto, 2010 .
+[64] ERHAN D, BENGIO Y, COURVILLE A, et al. Why
+
+95
+does unsupervised pre鄄training help deep learning? [ J] .
+The Journal of Machine Learning Research, 2010, 11:
+625 鄄660 .
+[65] SEIDE F, LI G, YU D. Conversational
+speech
+transcription
+using
+context鄄dependent
+deep
+neural
+networks [ C ] 椅 International Speech Communication
+Association.
+Annual
+Conference.
+12 th
+2011 .
+( Interspeech
+2011 ) .
+Red Hook, NY: Curran
+Associates, 2011: 437 鄄440 .
+[66] TOKUDA K, YOSHIMURA T, MASUKO T, et al.
+Speech parameter generation algorithms for HMM鄄based
+speech synthesis [ C ] 椅 Acoustics, Speech, and Signal
+Processing, 2000 . Proceedings 2000 IEEE International
+Conference on. Piscataway, NJ: IEEE, 2000: 1315 鄄
+1318 .
+[67] CHO K, van MERRIENBOER B, GULCEHRE C, et al.
+Learning phrase representations using RNN encoder鄄
+decoder for statistical machine translation [ J ] . CoRR,
+2014: abs / 1406 . 1078 .
+[68] ACL 2014 Ninth Workshop on Statistical Machine
+Translation [ DB / OL ] . [ 2014 鄄9 鄄23 ] . http: 椅 www.
+statmt. org / wmt14 / translation鄄task. html.
+[69] KOEHN P, HOANG H, BIRCH A, et al. Moses: open
+source toolkit
+for statistical machine translation [ C ] 椅
+Proceedings of the 45 th Annual Meeting of the ACL on
+Interactive
+Poster
+and
+Demonstration
+Sessions.
+Stroudsburg,
+PA: Association
+for
+Computational
+Linguistics, 2007: 177 鄄180 .
+[70] DENG J, DONG W, SOCHER R, et al.
+Imagenet: a
+large鄄scale hierarchical image database [ C ] 椅 Computer
+Vision and Pattern Recognition, 2009 . IEEE Conference
+on. Piscataway, NJ: IEEE, 2009: 248 鄄255 .
+[71] HUANG G B, MATTAR M, BERG T, et al. Labeled
+faces in the wild: a database forstudying face recognition
+in unconstrained environments [ C] 椅Workshop on Faces
+in ‘ Real鄄Life 爷 Images: Detection, Alignment, and
+Recognition. Marseille: Erik Learned鄄Miller and Andras
+Ferencz and Fr佴d佴ric Jurie, 2008 .
+[72 ] KUMAR N, BERG A C, BELHUMEUR P N, et al.
+Attribute and simile classifiers for face verification[ C] 椅
+Computer Vision,
+2009
+IEEE 12 th
+International
+Conference on. Piscataway, NJ: IEEE, 2009: 365 鄄372 .
+[73] LU C, TANG X. Surpassing human鄄level face verification
+performance on LFW with GaussianFace [ J ] . CoRR,
+2014: abs / 1404 . 3840 .
+[74] SOOMRO K, ZAMIR A R, SHAH M . Ucf101: a dataset
+of 101 human actions classes from videos in the wild[ J] .
+CoRR, 2012: abs / 1212 . 0402 .
+
+( 责任编辑摇 吕小红)
+

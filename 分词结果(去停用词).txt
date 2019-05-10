@@ -1,0 +1,548 @@
+CyFThis CVPR paper Open Access version Computer Vision Foundation 
+ Except watermark identical version IEEE Xplore Deep Residual Learning Image RecognitionKaiming He Xiangyu Zhang Shaoqing Ren Jian SunMicrosoft Research { kahe xiangz shren jiansun microsoft comAbstractDeeper neural networks difficult train We 
+ residual learning framework ease training 
+ networks deeper 
+ We explicitly reformulate layers learn 
+ ing residual functions reference layer inputs 
+ stead learning unreferenced functions We 
+ prehensive empirical evidence residual 
+ networks easier optimize gain accuracy 
+ considerably increased depth On ImageNet dataset 
+ evaluate residual nets depth 152 layers 8x 
+ deeper VGG nets 40 complex 
+ ity An ensemble residual nets achieves 3.57% error 
+ ImageNet test set This result 1st 
+ ILSVRC 2015 classification task We analysis 
+ CIFAR 10 100 1000 layers The depth representations central 
+ visual recognition tasks Solely 
+ tremely deep representations 28% relative 
+ provement COCO object detection dataset Deep 
+ residual nets foundations submissions ILSVRC 
+ COCO 2015 competitions1 1st 
+ tasks ImageNet detection ImageNet local 
+ ization COCO detection COCO segmentation IntroductionDeep convolutional neural networks 22 21 led 
+ series breakthroughs image classification 21 
+ 49 39 Deep networks naturally integrate mid 
+ level features 49 classifiers multi 
+ layer fashion levels features enriched 
+ stacked layers depth Recent evidence 
+ 40 43 reveals network depth crucial 
+ leading 40 43 12 16 challenging 
+ ImageNet dataset 35 exploit deep 40 models 
+ depth sixteen 40 16 Many 
+ trivial visual recognition tasks 11 32 27 also1http image net org challenges LSVRC 2015 
+ http mscoco org dataset detections challenge2015 Figure Training error left test error CIFAR 10 
+ 20 layer 56 layer plain networks The deeper network 
+ training error test error Similar phenomena 
+ ImageNet Fig greatly benefited deep models Driven significance depth question arises Is 
+ learning networks easy stacking layers 
+ An obstacle answering question notorious 
+ vanishing exploding gradients 14 
+ hamper convergence This 
+ addressed normalized initial 
+ ization 23 36 12 intermediate normalization layers 
+ 16 enable networks tens layers start 
+ verging stochastic gradient descent SGD 
+ propagation 22 When deeper networks start converging 
+ degradation exposed network 
+ depth increasing accuracy saturated 
+ unsurprising degrades rapidly Unexpectedly 
+ degradation caused overfitting adding 
+ layers suitably deep model leads train 
+ ing error reported 10 41 verified 
+ experiments Fig typical The degradation training accuracy 
+ systems easy optimize Let 
+ shallower architecture deeper counterpart adds 
+ layers There exists solution construction 
+ deeper model layers identity mapping 
+ layers copied learned shallower 
+ model The existence constructed solution 
+ deeper model produce training error 
+ shallower counterpart But experiments 
+ current solvers hand solutions that770F F xidentityreluFigure Residual learning building block xare comparably constructed solution 
+ feasible In paper address degradation 
+ introducing deep residual learning framework In 
+ stead hoping stacked layers directly fit 
+ desired underlying mapping explicitly lay 
+ ers fit residual mapping Formally denoting desired 
+ underlying mapping H stacked nonlinear 
+ layers fit mapping F H The orig 
+ inal mapping recast F We hypothesize 
+ easier optimize residual mapping optimize 
+ original unreferenced mapping To extreme 
+ identity mapping optimal easier push 
+ residual fit identity mapping stack 
+ nonlinear layers The formulation F realized feedfor 
+ ward neural networks shortcut connections Fig 
+ Shortcut connections 33 48 skipping 
+ layers In shortcut connections 
+ perform identity mapping outputs 
+ outputs stacked layers Fig Identity 
+ cut connections add extra parameter computa 
+ tional complexity The entire network trained 
+ SGD backpropagation eas 
+ ily implemented common libraries Caffe 19 
+ modifying solvers We comprehensive experiments ImageNet 
+ 35 degradation evaluate 
+ method We Our extremely deep residual nets 
+ easy optimize counterpart plain nets 
+ stack layers exhibit training error 
+ depth increases Our deep residual nets easily enjoy 
+ accuracy gains greatly increased depth producing 
+ sults previous networks Similar phenomena CIFAR 10 set 
+ 20 suggesting optimization difficulties 
+ effects method akin dataset 
+ We trained models dataset 
+ 100 layers explore models 1000 layers On ImageNet classification dataset 35 
+ excellent extremely deep residual nets Our 152 
+ layer residual net deepest network 
+ ImageNet complexity VGG 
+ nets 40 Our ensemble 3.57% error theImageNet test set 1st ILSVRC 
+ 2015 classification competition The extremely deep rep 
+ resentations excellent generalization performance 
+ recognition tasks lead win 
+ 1st ImageNet detection ImageNet localization 
+ COCO detection COCO segmentation ILSVRC 
+ COCO 2015 competitions This strong evidence 
+ residual learning principle generic expect 
+ applicable vision vision Related WorkResidual Representations In image recognition VLAD 
+ 18 representation encodes residual vectors 
+ respect dictionary Fisher Vector 30 
+ formulated probabilistic version 18 VLAD Both 
+ powerful shallow representations image 
+ trieval classification 47 For vector quantization 
+ encoding residual vectors 17 effec 
+ tive encoding original vectors In level vision graphics solv 
+ ing Partial Differential Equations PDEs 
+ Multigrid method reformulates subprob 
+ lems multiple scales subproblem respon 
+ sible residual solution coarser finer 
+ scale An alternative Multigrid hierarchical basis pre 
+ conditioning 44 45 relies variables repre 
+ residual vectors scales It 
+ 44 45 solvers converge faster stan 
+ dard solvers unaware residual nature 
+ solutions These methods reformulation 
+ preconditioning simplify optimization Shortcut Connections Practices theories lead 
+ shortcut connections 33 48 studied 
+ An practice training multi layer perceptrons 
+ MLPs add linear layer connected network 
+ input output 33 48 In 43 24 interme 
+ diate layers directly connected auxiliary classifiers 
+ addressing vanishing exploding gradients The papers 
+ 38 37 31 46 propose methods centering layer 
+ sponses gradients propagated errors implemented 
+ shortcut connections In 43 inception layer 
+ posed shortcut branch deeper branches Concurrent highway networks 41 42 
+ shortcut connections gating functions 15 
+ These gates data dependent parameters 
+ contrast identity shortcuts parameter free 
+ When gated shortcut closed approaching 
+ layers highway networks represent residual func 
+ tions On contrary formulation learns 
+ residual functions identity shortcuts closed 
+ passed addi 
+ tional residual functions learned In addition 771way networks demonstrated accuracy gains 
+ extremely increased depth 100 layers Deep Residual LearningResidual LearningLet H underlying mapping 
+ fit stacked layers entire net 
+ denoting inputs layers If 
+ hypothesizes multiple nonlinear layers asymptoti 
+ cally approximate complicated functions2 equiv 
+ alent hypothesize asymptotically approxi 
+ mate residual functions H assuming 
+ input output dimensions So 
+ expect stacked layers approximate H 
+ explicitly layers approximate residual function 
+ F H The original function 
+ F Although forms asymptot 
+ ically approximate desired functions hypothesized 
+ ease learning This reformulation motivated counterintuitive 
+ phenomena degradation Fig left As 
+ discussed introduction layers 
+ constructed identity mappings deeper model 
+ training error shallower counter 
+ The degradation suggests solvers 
+ difficulties approximating identity mappings 
+ multiple nonlinear layers With residual learning 
+ formulation identity mappings optimal solvers 
+ drive weights multiple nonlinear lay 
+ ers approach identity mappings In real identity mappings op 
+ timal reformulation precondition 
+ If optimal function closer identity 
+ mapping mapping easier 
+ solver perturbations reference identity 
+ mapping learn function We 
+ experiments Fig learned residual functions 
+ responses suggesting identity map 
+ pings reasonable preconditioning Identity Mapping ShortcutsWe adopt residual learning stacked layers 
+ building block Fig Formally paper 
+ building block defined F { Wj 	 Here input output vectors lay 
+ ers considered The function F { Wj represents 
+ residual mapping learned For Fig 
+ layers F W2a W1x denotes2This hypothesis question See 28 ReLU 29 biases simplifying 
+ tations The operation F performed shortcut 
+ connection element wise addition We adopt 
+ ond nonlinearity addition Fig The shortcut connections Eqn introduce 
+ tra parameter computation complexity This 
+ attractive practice comparisons 
+ plain residual networks We fairly 
+ pare plain residual networks simultaneously 
+ parameters depth width computa 
+ tional cost negligible element wise addition The dimensions F equal Eqn 
+ If changing input output 
+ channels perform linear projection Ws 
+ shortcut connections match dimensions F { Wj Wsx 	 We square matrix Ws Eqn But 
+ experiments identity mapping sufficient 
+ addressing degradation economical 
+ Ws matching dimensions The form residual function F flexible Exper 
+ iments paper involve function F 
+ layers Fig layers But 
+ F layer Eqn linear layer 
+ Wix observed advantages We notations 
+ connected layers simplicity applicable 
+ convolutional layers The function F { Wj repre 
+ multiple convolutional layers The element wise addi 
+ tion performed feature maps channel channel Network ArchitecturesWe tested plain residual nets ob 
+ served consistent phenomena To instances dis 
+ cussion models ImageNet Plain Network Our plain baselines Fig middle 
+ inspired philosophy VGG nets 40 Fig 
+ left The convolutional layers 3x3 filters 
+ design rules output 
+ feature map size layers fil 
+ ters feature map size halved num 
+ ber filters doubled preserve 
+ plexity layer We perform downsampling directly 
+ convolutional layers stride The network 
+ global average pooling layer 1000 
+ connected layer softmax The total 
+ weighted layers 34 Fig middle It worth noticing model fewer filters 
+ complexity VGG nets 40 Fig left Our 34 
+ layer baseline 3.6 FLOPs multiply adds 
+ 18% VGG 19 19.6 FLOPs 772VGG 19output 
+ size 224output 
+ size 112output 
+ size 56image33x3 conv 643x3 conv 64 pool 2jL3x3 conv 12833x3 conv 128 pool ± 3x3 conv 256 
+ 3x3 conv 2563x3 conv 256 	 3x3 conv 256output 
+ size 28pool 233x3 conv 512 
+ 3x3 conv 512 	 13x3 conv 512 3x3 conv 512output 
+ size 14pool ± 3x3 conv 512 
+ 3x3 conv 5123x3 conv 5123 3x3 conv 512output 
+ size 71rpool 2output 
+ size 1fc 4096fc 4096fc 100034 layer plainimage7x7 conv 64 pool 233x3 conv 643 3x3 conv 643x3 conv 64 ♦ 3x3 conv 64313x3 conv 64 ♦ 3x3 conv 128313x3 conv 1283x3 conv 128313x3 conv 1283 3x3 conv 1283x3 conv 1283 3x3 conv 1283x3 conv 256 2313x3 conv 2563x3 conv 2563x3 conv 2563 3x3 conv 2563x3 conv 256313x3 conv 2563x3 conv 256313x3 conv 2563x3 conv 2563x3 conv 256313x3 conv 2563x3 conv 512 2313x3 conv 5123x3 conv 5123x3 conv 5123 3x3 conv 5123x3 conv 512 
+ 
+ avg pool 34 layer residualimage7x7 conv 64 	 pool 23x3 conv 643x3 conv 128 2fc 1000fc 1000Figure Example network architectures ImageNet Left 
+ VGG 19 model 40 19.6 FLOPs reference Mid 
+ dle plain network 34 parameter layers 3.6 FLOPs 
+ Right residual network 34 parameter layers 3.6 
+ FLOPs The dotted shortcuts increase dimensions Table 
+ details variants Residual Network Based plain network 
+ insert shortcut connections Fig 
+ network counterpart residual version The identity 
+ shortcuts Eqn directly input 
+ output dimensions solid shortcuts 
+ Fig When dimensions increase dotted shortcuts 
+ Fig options The shortcut 
+ performs identity mapping extra entries padded 
+ increasing dimensions This option introduces extra 
+ parameter B The projection shortcut Eqn 
+ match dimensions 1x1 convolutions For 
+ options shortcuts feature maps 
+ sizes performed stride ImplementationOur implementation ImageNet practice 
+ 21 40 The image resized shorter 
+ domly sampled 256 480 scale augmentation 40 
+ 224x 224 crop randomly sampled image 
+ horizontal flip pixel subtracted 21 The 
+ standard color augmentation 21 We adopt batch 
+ normalization BN 16 convolution 
+ activation 16 We initialize weights 
+ 12 train plain residual nets scratch We 
+ SGD mini batch size 256 The learning rate 
+ starts 0.1 divided 10 error plateaus 
+ models trained 60 104 iterations We 
+ weight decay 0.0001 momentum 0.9 We 
+ dropout 13 practice 16 In testing comparison studies adopt standard 
+ 10 crop testing 21 For adopt 
+ convolutional form 40 12 average scores 
+ multiple scales images resized shorter 
+ { 224 256 384 480 640 ExperimentsImageNet ClassificationWe evaluate method ImageNet 2012 classifi 
+ cation dataset 35 consists 1000 classes The models 
+ trained 1.28 training images evalu 
+ ated 50k validation images We final 
+ result 100k test images reported test server 
+ We evaluate error rates Plain Networks We evaluate 18 layer 34 layer 
+ plain nets The 34 layer plain net Fig middle The 
+ 18 layer plain net form See Table 
+ tailed architectures The Table deeper 34 layer plain 
+ net validation error shallower 18 layer 
+ plain net To reveal reasons Fig left 
+ pare training validation errors training 
+ cedure We observed degradation the7733.6 x1093.8 x1097.6 x109FLOPS1.8 x1011.3 x10Table Architectures ImageNet Building blocks brackets Fig blocks stacked Down 
+ sampling performed conv3 conv4 conv5 stride Figure Training ImageNet Thin curves denote training error bold curves denote validation error center crops Left plain 
+ networks 18 34 layers Right ResNets 18 34 layers In plot residual networks extra parameter compared 
+ plain counterparts Table Top error 10 crop testing ImageNet validation 
+ Here ResNets extra parameter compared plain 
+ counterparts Fig training procedures.34 layer plain net training error 
+ training procedure solution space 
+ 18 layer plain network subspace 
+ 34 layer We argue optimization difficulty 
+ caused vanishing gradients These plain networks 
+ trained BN 16 ensures propagated 
+ signals variances We verify 
+ backward propagated gradients exhibit healthy norms 
+ BN So backward signals vanish In 
+ 34 layer plain net achieve compet 
+ itive accuracy Table suggesting solver 
+ extent We conjecture deep plain nets 
+ exponentially convergence rates impact thereducing training error3 The reason opti 
+ mization difficulties studied future Residual Networks Next evaluate 18 layer 34 
+ layer residual nets ResNets The baseline architectures 
+ plain nets expect shortcut 
+ connection pair 3x3 filters Fig 
+ In comparison Table Fig 
+ identity mapping shortcuts padding 
+ increasing dimensions option So extra 
+ parameter compared plain counterparts We major observations Table 
+ Fig First situation reversed residual learn 
+ ing 34 layer ResNet 18 layer ResNet 
+ 2.8% More importantly 34 layer ResNet exhibits 
+ considerably training error generalizable 
+ validation data This degradation 
+ addressed setting manage 
+ accuracy gains increased depth Second compared plain counterpart 34 layer3We experimented training iterations ob 
+ served degradation suggesting 
+ feasibly addressed iterations.774 Table Error rates 10 crop testing ImageNet validation 
+ VGG 16 based test ResNet 50 101 152 option B 
+ projections increasing dimensions Table Error rates model ImageNet 
+ validation set reported test set Table Error rates ensembles The error 
+ test set ImageNet reported test server ResNet reduces error 3.5% Table 
+ reduced training error Fig 
+ left This comparison verifies effectiveness residual 
+ learning extremely deep systems Last 18 layer plain residual nets 
+ comparably accurate Table 18 layer ResNet 
+ converges faster Fig left When net 
+ overly deep 18 layers current SGD solver 
+ solutions plain net In 
+ ResNet eases optimization faster conver 
+ gence stage Identity Projection Shortcuts We thatFigure deeper residual function F ImageNet Left 
+ building block 56x56 feature maps Fig ResNet 
+ 34 Right bottleneck building block ResNet 50 101 152 parameter free identity shortcuts training Next 
+ investigate projection shortcuts Eqn In Table 
+ compare options padding shortcuts 
+ increasing dimensions shortcuts parameter 
+ free Table Fig B projec 
+ tion shortcuts increasing dimensions 
+ shortcuts identity C shortcuts projections Table options considerably bet 
+ ter plain counterpart B We 
+ argue padded dimensions 
+ residual learning C marginally 
+ B attribute extra parameters introduced 
+ thirteen projection shortcuts But dif 
+ ferences B C projection shortcuts 
+ essential addressing degradation So 
+ option C rest paper reduce mem 
+ ory complexity model sizes Identity shortcuts 
+ increasing complexity 
+ bottleneck architectures introduced Deeper Bottleneck Architectures Next 
+ deeper nets ImageNet Because concerns train 
+ ing afford modify building block 
+ bottleneck design4 For residual function F 
+ stack layers Fig The layers 
+ 1x1 convolutions layers 
+ responsible reducing increasing restoring 
+ dimensions leaving layer bottleneck 
+ input output dimensions Fig 
+ designs complexity The parameter free identity shortcuts 
+ portant bottleneck architectures If identity 
+ cut Fig replaced projection 
+ complexity model size doubled 
+ shortcut connected dimensional 
+ So identity shortcuts lead efficient models 
+ bottleneck designs.50 layer ResNet We replace layer block the4Deeper bottleneck ResNets Fig left gain accuracy 
+ increased depth CIFAR 10 economical 
+ bottleneck ResNets So usage bottleneck designs 
+ practical considerations We degradation 
+ plain nets witnessed bottleneck designs.77534 layer net layer bottleneck block 
+ 50 layer ResNet Table We option B increasing 
+ dimensions This model 3.8 FLOPs.101 layer 152 layer ResNets We construct 101 
+ layer 152 layer ResNets layer blocks 
+ Table Remarkably depth 
+ increased 152 layer ResNet 11.3 FLOPs 
+ complexity VGG 16 19 nets 15.3 19.6 bil 
+ lion FLOPs The 50 101 152 layer ResNets accurate 
+ 34 layer considerable margins Table 
+ We observe degradation 
+ joy accuracy gains considerably increased 
+ depth The benefits depth witnessed evaluation 
+ metrics Table Comparisons State art Methods In Table 
+ compare previous model 
+ Our baseline 34 layer ResNets achieved compet 
+ itive accuracy Our 152 layer ResNet model 
+ validation error 4.49% This model result 
+ outperforms previous ensemble Table We 
+ combine models depth form ensemble 
+ 152 layer submitting 
+ This leads 3.57% error test set Table 
+ This entry 1st ILSVRC 2015 CIFAR 10 AnalysisWe conducted studies CIFAR 10 dataset 
+ 20 consists 50k training images 10k test 
+ ing images 10 classes We experiments trained 
+ training set evaluated test set Our focus 
+ behaviors extremely deep networks 
+ pushing art intentionally 
+ architectures The plain residual architectures form Fig 
+ middle The network inputs 32x32 images 
+ pixel subtracted The layer convo 
+ lutions Then stack 6n layers 3x3 convo 
+ lutions feature maps sizes { 32 16 
+ 2n layers feature map size The 
+ filters { 16 32 64 The subsampling 
+ formed convolutions stride The network 
+ global average pooling 10 connected 
+ layer softmax There totally 6n stacked weighted 
+ layers The table summarizes architecture When shortcut connections connected 
+ pairs 3x layers totally 3n shortcuts On 
+ dataset identity shortcuts option Table Classification error CIFAR 10 test set All meth 
+ ods data augmentation For ResNet 110 
+ ± std 42 residual models depth width 
+ parameters plain counterparts We weight decay 0.0001 momentum 0.9 
+ adopt weight initialization 12 BN 16 
+ dropout These models trained mini 
+ batch size 128 GPUs We start learning 
+ rate 0.1 divide 10 32k 48k iterations 
+ terminate training 64k iterations determined 
+ 45k 5k train val split We data augmen 
+ tation 24 training pixels padded 
+ 32x32 crop randomly sampled padded 
+ image horizontal flip For testing evaluate 
+ view original 32x32 image We compare { leading 20 32 44 
+ 56 layer networks Fig left behaviors 
+ plain nets The deep plain nets suffer increased depth 
+ exhibit training error deeper This 
+ phenomenon ImageNet Fig left 
+ MNIST 41 suggesting optimization 
+ difficulty fundamental Fig middle behaviors ResNets Also 
+ ImageNet Fig ResNets 
+ manage overcome optimization difficulty demon 
+ strate accuracy gains depth increases We explore 18 leads 110 layer 
+ ResNet In initial learning rate 
+ 0.1 start converging5 So 
+ 0.01 warm training training error 
+ 80% 400 iterations 0.1 
+ tinue training The rest learning schedule 
+ This 110 layer network converges Fig 
+ middle It fewer parameters deep thin5With initial learning rate 0.1 starts converging 90% error 
+ epochs reaches accuracy.77656 layer20 layer4 	 5iter 1e4 	 4iter 1e4 	 4iter 1e4 110 layer plain 20 
+ plain 32 
+ plain 44 
+ plain 56Figure Training CIFAR 10 Dashed lines denote training error bold lines denote testing error Left plain networks The error 
+ plain 110 60% displayed Middle ResNets Right ResNets 110 1202 layers Figure Standard deviations std layer responses CIFAR 
+ 10 The responses outputs 3x3 layer BN 
+ nonlinearity Top layers original 
+ Bottom responses ranked descending networks FitNet 34 Highway 41 Table 
+ art 6.43% Table Analysis Layer Responses Fig standard 
+ deviations std layer responses The responses 
+ outputs 3x3 layer BN 
+ nonlinearity ReLU addition For ResNets analy 
+ sis reveals response strength residual functions 
+ Fig ResNets responses 
+ plain counterparts These support ba 
+ sic motivation Sec.3 residual functions 
+ closer residual functions 
+ We notice deeper ResNet magni 
+ tudes responses evidenced comparisons 
+ ResNet 20 56 110 Fig When 
+ layers individual layer ResNets modify 
+ signal Exploring Over 1000 layers We explore aggressively 
+ deep model 1000 layers We set 200 
+ leads 1202 layer network trained 
+ Our method optimization difficulty 
+ 103 layer network achieve training error 
+ 0.1% Fig Its test error fairly 
+ 7.93% Table But aggressively 
+ deep models The testing result 1202 layer network 
+ 110 layer network bothTable Object detection mAP PASCAL VOC 
+ 2007 2012 test sets baseline Faster R CNN See 
+ pendix Table Object detection mAP COCO validation set 
+ baseline Faster R CNN See appendix training error We argue 
+ overfitting The 1202 layer network unnecessarily 
+ 19.4 M dataset Strong regularization 
+ maxout dropout 13 applied 
+ 25 24 34 dataset In paper 
+ maxout dropout impose regulariza 
+ tion deep architectures design dis 
+ tracting focus difficulties optimization 
+ But combining stronger regularization improve 
+ study future Object Detection PASCAL MS COCOOur method generalization performance 
+ recognition tasks Table object 
+ tection baseline PASCAL VOC 2007 2012 
+ COCO 26 We adopt Faster R CNN 32 
+ tection method Here improvements 
+ replacing VGG 16 40 ResNet 101 The detection 
+ implementation appendix models 
+ gains attributed networks 
+ Most remarkably challenging COCO dataset ob 
+ tain 6.0% increase COCO standard metric mAP 
+ 95 28% relative improvement This gain 
+ solely learned representations Based deep residual nets 1st 
+ tracks ILSVRC COCO 2015 competitions Im 
+ ageNet detection ImageNet localization COCO detection 
+ COCO segmentation The details appendix.777 ReferencesY Bengio P Simard P Frasconi Learning term dependen 
+ cies gradient descent difficult IEEE Transactions Neural 
+ Networks 157 166 1994 C M Bishop Neural networks pattern recognition Oxford 
+ university press 1995 W L Briggs S F McCormick Multigrid Tutorial Siam 
+ 2000 K Chatfield V Lempitsky Vedaldi Zisserman The devil 
+ details evaluation feature encoding methods 
+ In BMVC 2011 M Everingham L Van Gool C K Williams J Winn Zis 
+ serman The Pascal Visual Object Classes VOC Challenge IJCV 
+ 303 338 R Girshick Fast R CNN In ICCV 2015 R Girshick J Donahue T Darrell J Malik Rich feature hier 
+ archies accurate object detection semantic segmentation In 
+ CVPR 2014 X Glorot Y Bengio Understanding difficulty training 
+ deep feedforward neural networks In AISTATS I J Goodfellow D Warde Farley M Mirza Courville 
+ Y Bengio Maxout networks arXiv 1302.4389 2013 K He J Sun Convolutional neural networks constrained 
+ cost In CVPR 2015 K He X Zhang S Ren J Sun Spatial pyramid pooling deep 
+ convolutional networks visual recognition In ECCV 2014 K He X Zhang S Ren J Sun Delving deep rectifiers 
+ Surpassing human level performance imagenet classification In 
+ ICCV 2015 G E Hinton N Srivastava Krizhevsky I Sutskever andR 	 R Salakhutdinov Improving neural networks preventing 
+ adaptation feature detectors arXiv 1207.0580 2012 S Hochreiter Untersuchungen dynamischen neuronalen netzen 
+ Diploma thesis TU Munich 1991 S Hochreiter J Schmidhuber Long term memory Neural 
+ computation 1735 1780 1997 S Ioffe C Szegedy Batch normalization Accelerating deep 
+ network training reducing internal covariate shift In ICML 2015 H Jegou M Douze C Schmid Product quantization nearest 
+ neighbor search TPAMI 33 2011 H Jegou F Perronnin M Douze J Sanchez P Perez 
+ C Schmid Aggregating local image descriptors compact codes 
+ TPAMI 2012 Y Jia E Shelhamer J Donahue S Karayev J Long R Girshick S 	 Guadarrama T Darrell Caffe Convolutional architecture 
+ fast feature embedding arXiv 1408.5093 2014 Krizhevsky Learning multiple layers features tiny 
+ ages Tech Report 2009 Krizhevsky I Sutskever G Hinton Imagenet classification 
+ deep convolutional neural networks In NIPS 2012 Y LeCun B Boser J S Denker D Henderson R E Howard 
+ W Hubbard L D Jackel Backpropagation applied hand 
+ written zip code recognition Neural computation 1989 Y LeCun L Bottou G B Orr K R Muller Efficient backprop 
+ In Neural Networks Tricks Trade 50 Springer 1998 C Y Lee S Xie P Gallagher Z Zhang Z Tu Deeply 
+ supervised nets arXiv 1409.5185 2014 M Lin Q Chen S Yan Networkin network arXiv 1312.4400 
+ 2013 T Y Lin M Maire S Belongie J Hays P Perona D Ramanan 
+ P Dollar C L Zitnick Microsoft COCO Common objects 
+ context In ECCV 2014 J Long E Shelhamer T Darrell Fully convolutional networks 
+ semantic segmentation In CVPR 2015 G Montufar R Pascanu K Cho Y Bengio On 
+ linear regions deep neural networks In NIPS 2014 V Nair G E Hinton Rectified linear units improve restricted 
+ boltzmann machines In ICML F Perronnin C Dance Fisher kernels visual vocabularies 
+ image categorization In CVPR 2007 T Raiko H Valpola Y LeCun Deep learning easier 
+ linear transformations perceptrons In AISTATS 2012 S Ren K He R Girshick J Sun Faster R CNN Towards 
+ real object detection region proposal networks In NIPS 
+ 2015 B D Ripley Pattern recognition neural networks Cambridge 
+ university press 1996 Romero N Ballas S E Kahou Chassang C Gatta andY 	 Bengio Fitnets Hints deep nets In ICLR 2015 O Russakovsky J Deng H Su J Krause S Satheesh S Ma Z 	 Huang Karpathy Khosla M Bernstein Imagenet 
+ scale visual recognition challenge arXiv 1409.0575 2014 M Saxe J L McClelland S Ganguli Exact solutions 
+ nonlinear dynamics learning deep linear neural networks 
+ arXiv 1312.6120 2013 N N Schraudolph Accelerated gradient descent factor centering 
+ decomposition Technical report 1998 N N Schraudolph Centering neural network gradient factors In 
+ Neural Networks Tricks Trade 207 226 Springer 1998 P Sermanet D Eigen X Zhang M Mathieu R Fergus Y Le 
+ Cun Overfeat Integrated recognition localization detection 
+ convolutional networks In ICLR 2014 K Simonyan Zisserman Very deep convolutional networks 
+ scale image recognition In ICLR 2015 R K Srivastava K Greff J Schmidhuber Highway networks 
+ arXiv 1505.00387 2015 R K Srivastava K Greff J Schmidhuber Training deep 
+ networks 1507.06228 2015 C Szegedy W Liu Y Jia P Sermanet S Reed D Anguelov D Er 
+ han V Vanhoucke Rabinovich Going deeper convolu 
+ tions In CVPR 2015 R Szeliski Fast surface interpolation hierarchical basis func 
+ tions TPAMI 1990 R Szeliski Locally adapted hierarchical basis preconditioning In 
+ SIGGRAPH 2006 T Vatanen T Raiko H Valpola Y LeCun Pushing stochas 
+ tic gradient methods backpropagation learn 
+ ing transformations nonlinearities In Neural Information 
+ Processing 2013 Vedaldi B Fulkerson VLFeat An portable library 
+ vision algorithms 2008 W Venables B Ripley Modern applied statistics plus.1999 M D Zeiler R Fergus Visualizing understanding convolu 
+ tional neural networks In ECCV 2014.778
